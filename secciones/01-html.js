@@ -1,20 +1,45 @@
 window.__SECC = window.__SECC || {};
 window.__SECC["html"] = `<h1>HTML y el punto de entrada</h1>
-<p class="subtitulo">Cómo el navegador empieza a ejecutar el proyecto: <code>index.html</code> y <code>main.jsx</code>.</p>
+<p class="subtitulo">El primer milisegundo de la web: del URL al primer pixel.</p>
 
-<p class="lead">Toda página web empieza con un fichero HTML. En proyectos React ese fichero es <strong>mínimo</strong>: sólo contiene una caja vacía y un script. React se encarga del resto. En esta sección lo desmenuzamos línea a línea para que sepas qué pasa exactamente cuando alguien escribe la URL en el navegador.</p>
+<p class="lead">Toda web empieza por un fichero HTML. En proyectos React ese fichero es <strong>mínimo</strong>: una caja vacía y un script. Lo que importa no es cuánto HTML hay, sino qué hace el navegador con él. Vamos a recorrer toda esa cadena en orden: usuario teclea URL → el HTML llega → se parsea → arranca React → primer render.</p>
 
-<h2>1. ¿Qué es HTML?</h2>
-<p>HTML (HyperText Markup Language) es un lenguaje de <em>etiquetas</em>. Cada etiqueta representa un trozo de la página: títulos, párrafos, imágenes, formularios… El navegador lee el HTML de arriba abajo y construye un árbol en memoria llamado <strong>DOM</strong> (Document Object Model).</p>
+<h2>1. La historia del primer render, paso a paso</h2>
 
-<div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Idea clave</div>
-  <p>El DOM es como un <strong>árbol genealógico</strong> de tu página: <code>html</code> es el abuelo, <code>body</code> es un hijo, dentro hay <code>div</code>, dentro hay <code>p</code>… JavaScript puede manipular ese árbol en vivo: añadir hijos, cambiar texto, etc. Eso es lo que hace React por debajo.</p>
+<p>Antes de leer una sola etiqueta, ten en la cabeza esta secuencia. Es la misma cada vez que alguien entra en la web.</p>
+
+<figure class="diagrama">
+  <figcaption>Pipeline desde URL hasta primer paint</figcaption>
+  <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as Usuario
+  participant N as Navegador
+  participant V as Vite Dev Server
+  U->>N: Teclea http://localhost:5173/
+  N->>V: GET /
+  V-->>N: index.html (50 líneas)
+  Note over N: Parser HTML → árbol DOM
+  N->>V: GET fuentes (Google, Bootstrap Icons) + main.jsx
+  V-->>N: CSS → CSSOM (en paralelo)
+  V-->>N: main.jsx ya transpilado
+  N->>N: Ejecuta main.jsx
+  N->>N: createRoot(#root).render(&lt;App /&gt;)
+  N->>N: React monta App, JSX → DOM
+  Note over N: Layout + Paint → primer pixel
+  </pre>
+</figure>
+
+<div class="tip-regla">
+  Memoriza el orden: <strong>HTML → DOM → CSSOM → Render Tree → Layout → Paint</strong>. Si te preguntan "por qué se ve la página en blanco un instante", la respuesta vive en uno de estos pasos.
 </div>
 
-<h3>Ejemplo mínimo de HTML</h3>
+<h2>2. ¿Qué es HTML, mentalmente?</h2>
+
+<p>HTML (HyperText Markup Language) es un lenguaje de <em>etiquetas</em>. El navegador lo lee de arriba abajo y construye un <strong>árbol</strong> en memoria llamado <strong>DOM</strong> (Document Object Model). Cada etiqueta es un nodo, igual que un árbol genealógico:</p>
+
 <div class="code-wrap">
-  <span class="file-label">ejemplo.html</span>
+  <span class="file-label">ejemplo.html — la pieza mínima</span>
 <pre><code class="language-html">&lt;!doctype html&gt;
 &lt;html lang="es"&gt;
   &lt;head&gt;
@@ -27,8 +52,11 @@ window.__SECC["html"] = `<h1>HTML y el punto de entrada</h1>
 &lt;/html&gt;</code></pre>
 </div>
 
-<h2>2. El <code>index.html</code> de DaWeb</h2>
-<p>Está en <code>daweb/daweb/index.html</code>. Aquí lo tienes íntegro:</p>
+<p>JavaScript puede luego manipular ese árbol en vivo: añadir hijos, cambiar texto, borrar nodos. React es básicamente un <em>generador</em> automatizado de esas manipulaciones.</p>
+
+<h2>3. El <code>index.html</code> de DaWeb, comentado</h2>
+
+<p>Está en <code>daweb/daweb/index.html</code>. Es muy corto: una caja vacía y un script de entrada.</p>
 
 <div class="code-wrap">
   <span class="file-label">daweb/index.html</span>
@@ -51,34 +79,42 @@ window.__SECC["html"] = `<h1>HTML y el punto de entrada</h1>
 &lt;/html&gt;</code></pre>
 </div>
 
-<h3>Línea a línea</h3>
+<h3>Línea a línea, en orden de carga</h3>
+
 <table>
-  <tr><th>Línea</th><th>Qué hace</th></tr>
-  <tr><td><code>&lt;!doctype html&gt;</code></td><td>Le dice al navegador "esto es HTML5". Si lo omites, entra en modo "quirks" (raro) que comparte raros bugs antiguos.</td></tr>
-  <tr><td><code>&lt;html lang="es"&gt;</code></td><td>Idioma de la página. Ayuda a buscadores, lectores de pantalla y al corrector ortográfico.</td></tr>
-  <tr><td><code>&lt;meta charset="utf-8"&gt;</code></td><td>Codificación: UTF-8 soporta tildes, eñes, emojis, todo.</td></tr>
-  <tr><td><code>&lt;meta name="viewport" ...&gt;</code></td><td>Imprescindible para móvil: dice que el ancho de la pantalla es el ancho del dispositivo (sin esto el móvil "haría zoom out" automáticamente).</td></tr>
-  <tr><td><code>&lt;link rel="icon" ...&gt;</code></td><td>Favicon: el iconito de la pestaña.</td></tr>
-  <tr><td><code>&lt;link rel="preconnect" ...&gt;</code></td><td>Pista al navegador para abrir conexión con Google Fonts cuanto antes (ahorra unos ms en carga).</td></tr>
-  <tr><td><code>&lt;link href=".../family=Google+Sans+Flex..." /&gt;</code></td><td>Carga la fuente Google Sans Flex desde el CDN de Google.</td></tr>
-  <tr><td><code>&lt;link rel="stylesheet" href=".../bootstrap-icons..." /&gt;</code></td><td>Carga la fuente de iconos Bootstrap Icons (esos <code>&lt;i class="bi bi-..."&gt;</code> que verás).</td></tr>
-  <tr><td><code>&lt;title&gt;DaWeb Reventas&lt;/title&gt;</code></td><td>Texto de la pestaña del navegador.</td></tr>
-  <tr><td><code>&lt;div id="root"&gt;&lt;/div&gt;</code></td><td>⭐ <strong>La caja donde React inyectará toda la web.</strong></td></tr>
-  <tr><td><code>&lt;script type="module" src="/src/main.jsx"&gt;</code></td><td>Carga el JavaScript de entrada. <code>type="module"</code> activa los <em>ES Modules</em>, que permiten usar <code>import</code> / <code>export</code>.</td></tr>
+  <tr><th>Línea</th><th>Qué hace y por qué importa</th></tr>
+  <tr><td><code>&lt;!doctype html&gt;</code></td><td>Le dice al navegador "esto es HTML5". Sin esto entra en modo <em>quirks</em> (compatibilidad antigua) y heredas bugs de los 90.</td></tr>
+  <tr><td><code>&lt;html lang="es"&gt;</code></td><td>Idioma para buscadores, lectores de pantalla y corrector ortográfico del navegador.</td></tr>
+  <tr><td><code>&lt;meta charset="utf-8"&gt;</code></td><td>Codificación: UTF-8 soporta tildes, eñes, emojis. Sin esto verías "â€™" en lugar de "'".</td></tr>
+  <tr><td><code>&lt;meta name="viewport" ...&gt;</code></td><td><strong>Imprescindible</strong> en móvil: dice que el ancho lógico = ancho del dispositivo. Sin esto el móvil hace zoom-out automático.</td></tr>
+  <tr><td><code>&lt;link rel="icon"&gt;</code></td><td>Favicon de la pestaña.</td></tr>
+  <tr><td><code>&lt;link rel="preconnect"&gt;</code></td><td>Pista al navegador: "abre TCP+TLS con esa CDN cuanto antes". Ahorra 100-200 ms en la primera carga.</td></tr>
+  <tr><td><code>&lt;link href=".../Google+Sans+Flex..."&gt;</code></td><td>CSS con declaraciones <code>@font-face</code> que apuntan a los archivos de fuente.</td></tr>
+  <tr><td><code>&lt;link href=".../bootstrap-icons..."&gt;</code></td><td>Familia de iconos. Por eso luego escribes <code>&lt;i class="bi bi-search"&gt;</code>.</td></tr>
+  <tr><td><code>&lt;title&gt;</code></td><td>Texto de la pestaña. También título por defecto en marcadores.</td></tr>
+  <tr><td><code>&lt;div id="root"&gt;&lt;/div&gt;</code></td><td>⭐ <strong>La caja donde React inyecta toda la web.</strong> Único acoplamiento entre el HTML y el JS.</td></tr>
+  <tr><td><code>&lt;script type="module" src="/src/main.jsx"&gt;</code></td><td>Carga el JS de entrada. <code>type="module"</code> activa ES Modules y aplica <em>defer</em> implícito.</td></tr>
 </table>
 
-<div class="callout tip">
-  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> La idea clave</div>
-  <p>En toda app React, el HTML es así de minúsculo: una <code>div</code> vacía con id <code>root</code> y un script. <strong>Toda la interfaz se construye después con JavaScript</strong>. Esto se llama <strong>SPA</strong> (Single Page Application): una sola página HTML que cambia su contenido sin recargar.</p>
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> La gran idea</div>
+  <p>El HTML de una SPA es <strong>casi vacío</strong>. Toda la interfaz se monta luego con JavaScript. Es la diferencia con una web tradicional, donde el servidor envía HTML completo y JS sólo añade interactividad.</p>
 </div>
 
-<h2>3. El arranque de React: <code>src/main.jsx</code></h2>
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-diagram-3"></i> SOLID · SRP (Single Responsibility)</span>
+  <p>El <code>&lt;div id="root"&gt;</code> tiene UNA sola responsabilidad: ser punto de anclaje de React. No metas markup propio dentro, no le pongas estilos directos, no le añadas otros scripts inline. Si lo haces, mezclas dos contratos (HTML estático + React) y React acabará pisándolo.</p>
+</div>
+
+<h2>4. El arranque de React: <code>src/main.jsx</code></h2>
+
+<p>El script de entrada es minúsculo. Hace lo justo: importa lo necesario, encuentra el <code>#root</code> y le dice a React "monta aquí".</p>
 
 <div class="code-wrap">
   <span class="file-label">src/main.jsx</span>
 <pre><code class="language-jsx">import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import 'bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap/dist/css/bootstrap.min.css'  // CSS global como side-effect
 import './index.css'
 import './theme.css'
 import App from './App.jsx'
@@ -90,136 +126,119 @@ createRoot(document.getElementById('root')).render(
 )</code></pre>
 </div>
 
-<h3>Línea a línea</h3>
-<ul>
-  <li><code>import { StrictMode } from 'react'</code>: trae el componente <code>StrictMode</code> que avisa de prácticas obsoletas durante el desarrollo.</li>
-  <li><code>import { createRoot } from 'react-dom/client'</code>: <em>react-dom</em> es el puente entre React y el DOM real del navegador. <code>createRoot</code> es el API moderno (React 18+) para iniciar una app.</li>
-  <li><code>import 'bootstrap/...';</code>: importa el CSS de Bootstrap como efecto secundario (no necesita variable).</li>
-  <li><code>import './index.css'</code> y <code>'./theme.css'</code>: cargan los estilos globales y el sistema de colores del proyecto.</li>
-  <li><code>import App from './App.jsx'</code>: trae el componente raíz.</li>
-  <li><code>createRoot(document.getElementById('root')).render(...)</code>: <em>"toma la div con id root y dibuja dentro este árbol de componentes"</em>.</li>
-  <li><code>&lt;StrictMode&gt;&lt;App /&gt;&lt;/StrictMode&gt;</code>: envuelve la app en StrictMode (puro consejo: detecta efectos secundarios mal hechos).</li>
-</ul>
+<h3>Cada línea, traducida a humano</h3>
 
-<h3>Flujo completo desde la URL</h3>
-<div class="flujo">
-  <div class="flujo-paso"><span class="num">1</span> Usuario escribe <code>http://localhost:5173/</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> Vite responde con <code>index.html</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> El navegador lee la etiqueta <code>&lt;script&gt;</code> y descarga <code>/src/main.jsx</code> (Vite lo compila al vuelo).</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">4</span> <code>main.jsx</code> ejecuta <code>createRoot(...).render(&lt;App /&gt;)</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">5</span> React monta el componente <code>App</code> dentro del <code>div#root</code>. ¡La página aparece!</div>
+<div class="tabla-wrap">
+<table class="anotada">
+  <tr>
+    <td class="code">import { StrictMode } from 'react'</td>
+    <td class="nota"><strong>StrictMode</strong> es un componente que avisa de prácticas obsoletas o efectos mal escritos durante desarrollo. En producción no hace nada.</td>
+  </tr>
+  <tr>
+    <td class="code">import { createRoot } from 'react-dom/client'</td>
+    <td class="nota"><strong>react-dom</strong> es el puente entre React y el DOM real. <code>createRoot</code> es la API moderna (React 18+) para iniciar una app concurrent-ready.</td>
+  </tr>
+  <tr>
+    <td class="code">import 'bootstrap/.../bootstrap.min.css'</td>
+    <td class="nota">Import sin variable = se ejecuta por su <strong>efecto secundario</strong> (inyectar CSS en el head). Vite lo procesa al bundlear.</td>
+  </tr>
+  <tr>
+    <td class="code">import App from './App.jsx'</td>
+    <td class="nota">Trae el componente raíz. Por convención el archivo y el componente comparten nombre.</td>
+  </tr>
+  <tr>
+    <td class="code">createRoot(document.getElementById('root')).render(...)</td>
+    <td class="nota">"Coge la caja con id <code>root</code> y dibuja dentro este árbol". Único punto donde React conecta con el DOM real.</td>
+  </tr>
+</table>
 </div>
 
-<h2>4. ¿Qué son las "etiquetas con clases" como <code>&lt;i class="bi bi-search"&gt;</code>?</h2>
-<p>El paquete Bootstrap Icons funciona inyectando una fuente: cada clase <code>bi-XXX</code> renderiza un carácter especial que dibuja un icono. Por eso usas <code>&lt;i&gt;</code> (italic) vacío con la clase apropiada.</p>
+<h2>5. ¿Por qué <code>type="module"</code> es especial?</h2>
 
-<h2>5. Teoría profunda: lo que el entrevistador sabe</h2>
+<p>Aquí está la mitad de la magia que permite que el script viva en el <code>&lt;head&gt;</code> sin bloquear nada. Los módulos ES no son como los scripts clásicos:</p>
 
-<h3>El pipeline de renderizado del navegador paso a paso</h3>
-<p>Cuando el navegador recibe el HTML del servidor, no lo muestra directamente. Pasa por un pipeline complejo:</p>
-
-<div class="flujo">
-  <div class="flujo-paso"><span class="num">1</span> <strong>HTML parsing</strong>: el parser lee el HTML de arriba abajo y construye el árbol DOM (Document Object Model) — una estructura de objetos JavaScript en memoria. Cada etiqueta es un nodo.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> <strong>Recursos bloqueantes</strong>: si el parser encuentra un <code>&lt;script&gt;</code> sin <code>defer</code>/<code>async</code>, <em>detiene</em> el parsing, descarga el script y lo ejecuta. Por eso los scripts sin defer deben ir al final del body o usar defer.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> <strong>CSS parsing</strong>: el CSSOM (CSS Object Model) se construye en paralelo con el DOM.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">4</span> <strong>Render Tree</strong>: DOM + CSSOM = árbol de lo que realmente se dibuja (excluye <code>display:none</code>, <code>&lt;head&gt;</code>, etc.).</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">5</span> <strong>Layout</strong>: calcula posición y tamaño de cada elemento.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">6</span> <strong>Paint</strong>: dibuja píxeles en pantalla.</div>
-</div>
-
-<h3>Por qué <code>type="module"</code> es especial</h3>
-<p>Los módulos ES tienen comportamiento distinto a los scripts clásicos:</p>
 <table>
   <tr><th>Característica</th><th>Script clásico</th><th><code>type="module"</code></th></tr>
-  <tr><td>Bloquea el parser</td><td>Sí (si está en head sin defer)</td><td>No — siempre diferido</td></tr>
+  <tr><td>Bloquea el parser HTML</td><td>Sí, si no tiene <code>defer</code>/<code>async</code></td><td><strong>Nunca</strong> (defer implícito)</td></tr>
   <tr><td>Modo estricto</td><td>Opcional (<code>'use strict'</code>)</td><td>Siempre activado</td></tr>
-  <tr><td><code>import</code>/<code>export</code></td><td>SyntaxError</td><td>Funciona</td></tr>
-  <tr><td>Scope</td><td>Global — las variables son <code>window.x</code></td><td>Local al módulo</td></tr>
-  <tr><td>Se ejecuta</td><td>Inmediatamente al descargarse</td><td>Cuando el DOM está listo (como DOMContentLoaded)</td></tr>
+  <tr><td><code>import</code> / <code>export</code></td><td>SyntaxError</td><td>Funciona</td></tr>
+  <tr><td>Scope</td><td>Global (variables son <code>window.x</code>)</td><td>Local al módulo</td></tr>
+  <tr><td>Cuándo se ejecuta</td><td>Inmediatamente al descargar</td><td>Cuando el DOM ya está construido</td></tr>
 </table>
 
-<div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Por qué el script puede estar en el &lt;head&gt;</div>
-  <p>En HTML clásico, poner un script en el <code>&lt;head&gt;</code> sin <code>defer</code> bloquea el renderizado. Con <code>type="module"</code> es seguro en el <code>&lt;head&gt;</code> porque el módulo se descarga en paralelo y sólo ejecuta cuando el DOM está construido.</p>
+<div class="tip-regla">
+  <strong><code>type="module"</code> ⇒ defer gratis.</strong> Por eso puede vivir en el <code>&lt;head&gt;</code> sin bloquear el render. Si algún día creas tu propio HTML, no te olvides del <code>type="module"</code> cuando uses <code>import</code>.
 </div>
 
-<h3>El atributo <code>crossorigin</code> en preconnect</h3>
-<p>El <code>index.html</code> tiene:</p>
+<h2>6. El detalle del <code>crossorigin</code> en preconnect</h2>
+
 <div class="code-wrap">
 <pre><code class="language-html">&lt;link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /&gt;</code></pre>
 </div>
-<p>El atributo <code>crossorigin</code> le dice al navegador que la futura petición a ese servidor necesitará credenciales CORS anónimas. Sin él, el navegador establece dos conexiones diferentes (una con credenciales, otra sin) y el preconnect no sirve de nada para las fuentes. Con él, reutiliza la conexión preestablecida.</p>
 
-<h3>StrictMode: por qué tu efecto corre dos veces en desarrollo</h3>
-<p>En producción, cuando un componente se monta, React ejecuta el <code>useEffect</code> una sola vez. En desarrollo con <code>StrictMode</code>, React hace deliberadamente:</p>
+<p>El atributo <code>crossorigin</code> le indica al navegador que la futura petición usará credenciales CORS anónimas. Sin él, el navegador abriría DOS conexiones distintas (una con credenciales, otra sin) y el preconnect no serviría de nada para las fuentes. Con él, reutiliza la conexión pre-establecida y la fuente carga unos ms antes.</p>
+
+<h2>7. StrictMode: por qué tu efecto corre dos veces en dev</h2>
+
+<p>En producción, un efecto se ejecuta una vez por montaje. En desarrollo, StrictMode hace <em>deliberadamente</em>:</p>
 
 <div class="flujo">
   <div class="flujo-paso"><span class="num">1</span> Monta el componente y ejecuta los efectos.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> Desmonta el componente y ejecuta las funciones de limpieza.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> Monta de nuevo y ejecuta los efectos otra vez.</div>
+  <div class="flujo-paso"><span class="num">2</span> Desmonta y ejecuta las funciones de limpieza.</div>
+  <div class="flujo-paso"><span class="num">3</span> Vuelve a montar y ejecuta los efectos otra vez.</div>
 </div>
 
-<p>El objetivo: detectar efectos sin función de limpieza correcta. Si tu efecto suma una visualización y no cancela el intervalo o subscription correctamente, lo verás roto en desarrollo antes de llegar a producción. Por eso <code>DetalleProducto</code> usa <code>visualizacionContadaRef</code>: el ref recuerda qué producto ya contó y no cuenta dos veces aunque el efecto corra dos veces.</p>
+<p>El objetivo: forzarte a escribir efectos con función de limpieza correcta. Si tu efecto suma una visualización y no se protege, la verás <strong>x2</strong> en dev. Por eso <code>DetalleProducto.jsx</code> usa <code>visualizacionContadaRef</code>: recuerda qué producto ya contó y no cuenta dos veces aunque el efecto corra dos veces.</p>
 
 <div class="callout warning">
   <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> SPA: la trampa del refresh en producción</div>
-  <p>En <code>npm run dev</code>, si abres directamente <code>http://localhost:5173/productos</code> funciona. Vite está configurado para servir <code>index.html</code> para cualquier ruta desconocida. En producción (nginx por ejemplo), al navegar a <code>/productos</code>, el servidor busca el fichero físico <code>/productos</code>, no lo encuentra y devuelve 404. Solución estándar: configurar <code>try_files $uri /index.html;</code> en nginx para que cualquier ruta sirva el index.html y React Router decida qué mostrar.</p>
+  <p>En <code>npm run dev</code>, abrir directamente <code>http://localhost:5173/productos</code> funciona porque Vite sirve <code>index.html</code> para cualquier ruta. En producción con nginx, esa URL busca un fichero físico <code>/productos</code>, no lo encuentra y devuelve 404. Solución estándar: <code>try_files $uri /index.html;</code> en nginx, para que cualquier ruta sirva el index y React Router decida qué pintar.</p>
 </div>
 
-<h3>Preguntas trampa del entrevistador</h3>
+<h2>8. Preguntas trampa frecuentes</h2>
 
 <div class="callout warning">
   <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si el usuario tiene JavaScript desactivado?"</div>
-  <p><strong>Respuesta completa</strong>: La web muestra un <code>&lt;div id="root"&gt;</code> vacío. No hay fallback de contenido porque es una SPA pura (Client-Side Rendering). Para manejar esto se puede añadir un <code>&lt;noscript&gt;</code> en el HTML, o usar SSR (Server-Side Rendering) con frameworks como Next.js, que genera el HTML en el servidor. DaWeb no usa SSR.</p>
+  <p><strong>Respuesta:</strong> ve un <code>div</code> vacío. No hay fallback porque es una SPA pura (CSR). Para mejorarlo añadirías un <code>&lt;noscript&gt;</code> con un mensaje, o moverías a SSR con Next.js. DaWeb no lo hace.</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Afecta esta arquitectura al SEO?"</div>
-  <p><strong>Respuesta completa</strong>: Sí, negativamente. Los buscadores como Googlebot pueden ejecutar JavaScript, pero hay limitaciones: el crawler puede no esperar suficiente tiempo para que React monte los componentes, y puede que no ejecute ciertos scripts. Una SPA pura tiene peor indexación que HTML estático. Para un marketplace de segunda mano en producción real, se usaría SSR o pre-rendering para las páginas de producto.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Afecta esto al SEO?"</div>
+  <p><strong>Respuesta:</strong> sí, negativamente. Googlebot ejecuta JS pero hay límites de tiempo y recursos. Una SPA pura tiene peor indexación que HTML estático. Para un marketplace real en producción usarías SSR o pre-rendering para las páginas de producto.</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué hay dos <code>&lt;link rel="preconnect"&gt;</code> para Google Fonts?"</div>
-  <p><strong>Respuesta</strong>: Las fuentes de Google usan dos dominios: <code>fonts.googleapis.com</code> para la CSS que lista las fuentes (petición sencilla), y <code>fonts.gstatic.com</code> para los archivos de fuente reales (petición con CORS anónimo). El preconnect a ambos establece las conexiones TCP+TLS antes de que el navegador sepa que las necesita, ahorrando 100-200ms en la carga inicial.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué dos <code>&lt;link rel="preconnect"&gt;</code> a Google Fonts?"</div>
+  <p><strong>Respuesta:</strong> son dos dominios distintos. <code>fonts.googleapis.com</code> sirve el CSS (sin credenciales). <code>fonts.gstatic.com</code> sirve los WOFF (CORS anónimo). El preconnect establece TCP+TLS a ambos antes de que el navegador descubra que los necesita.</p>
 </div>
 
-<h2>6. Quiz</h2>
+<h2>9. Quiz</h2>
+
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta</div>
-  <p class="quiz-pregunta">¿Por qué el <code>&lt;div id="root"&gt;</code> está vacío en <code>index.html</code>?</p>
+  <p class="quiz-pregunta">¿Por qué el <code>&lt;div id="root"&gt;</code> está vacío?</p>
   <div class="quiz-opciones">
     <button class="quiz-opcion" data-correcta="0">Porque es un placeholder que el diseñador no rellenó.</button>
     <button class="quiz-opcion" data-correcta="1">Porque React lo rellenará en tiempo de ejecución desde <code>main.jsx</code>.</button>
-    <button class="quiz-opcion" data-correcta="0">Porque el contenido lo añade el servidor backend antes de enviar el HTML.</button>
-    <button class="quiz-opcion" data-correcta="0">Porque por defecto los <code>div</code> se rellenan solos.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque el contenido lo añade el servidor antes de enviar el HTML.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque los <code>div</code> se rellenan solos por defecto.</button>
   </div>
-  <p class="quiz-feedback" data-ok="Justo: React necesita un nodo del DOM donde montar su árbol de componentes." data-ko="React necesita un punto de anclaje en el DOM real para empezar a pintar."></p>
+  <p class="quiz-feedback" data-ok="Eso es: React necesita un nodo del DOM donde montar su árbol." data-ko="React necesita un punto de anclaje en el DOM real para empezar a pintar."></p>
 </div>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta</div>
   <p class="quiz-pregunta">¿Para qué sirve <code>type="module"</code> en la etiqueta <code>&lt;script&gt;</code>?</p>
   <div class="quiz-opciones">
-    <button class="quiz-opcion" data-correcta="0">Para que el script se cargue en paralelo y bloquee el render.</button>
-    <button class="quiz-opcion" data-correcta="1">Para activar los ES Modules y poder usar <code>import</code> / <code>export</code>.</button>
+    <button class="quiz-opcion" data-correcta="0">Para que el script bloquee el render.</button>
+    <button class="quiz-opcion" data-correcta="1">Para activar ES Modules (<code>import</code>/<code>export</code>) y aplicar defer implícito.</button>
     <button class="quiz-opcion" data-correcta="0">Para que el script sea visible en Google Analytics.</button>
-    <button class="quiz-opcion" data-correcta="0">Para indicar al navegador que es un módulo de TypeScript.</button>
+    <button class="quiz-opcion" data-correcta="0">Para indicar que es TypeScript.</button>
   </div>
-  <p class="quiz-feedback" data-ok="Eso es. Sin module, los import/export dan error en el navegador." data-ko="Pista: en un script clásico, escribir 'import' lanza SyntaxError."></p>
+  <p class="quiz-feedback" data-ok="Sin module, escribir 'import' lanza SyntaxError." data-ko="Pista: prueba a usar 'import' en un script clásico → SyntaxError."></p>
 </div>
 
-<h2>5. Ejercicios</h2>
+<h2>10. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
@@ -234,7 +253,7 @@ createRoot(document.getElementById('root')).render(
   </ol>
   <details>
     <summary>Si no se actualiza</summary>
-    <p>Vite recarga el HTML completo al modificarlo (no es HMR, recarga la pestaña). Si no aparece el nuevo título, recarga manualmente con <span class="kbd">Ctrl</span>+<span class="kbd">R</span>.</p>
+    <p>Vite recarga el HTML completo al modificarlo. Si no aparece el nuevo título, recarga manualmente con <span class="kbd">Ctrl</span>+<span class="kbd">R</span>.</p>
   </details>
 </div>
 
@@ -245,13 +264,9 @@ createRoot(document.getElementById('root')).render(
     <span class="nivel">★★ Intermedio</span>
   </div>
   <ol>
-    <li>En <code>index.html</code>, añade después del <code>&lt;link&gt;</code> de Google Sans Flex otra fuente: <code>&lt;link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;display=swap" rel="stylesheet" /&gt;</code></li>
-    <li>En <code>src/theme.css</code>, cambia <code>--sans</code> (si lo encuentras) o añade en <code>body</code>: <code>font-family: 'Inter', sans-serif;</code> y observa el cambio.</li>
+    <li>En <code>index.html</code>, añade tras Google Sans Flex: <code>&lt;link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;display=swap" rel="stylesheet" /&gt;</code>.</li>
+    <li>En <code>theme.css</code>, añade en <code>body</code>: <code>font-family: 'Inter', sans-serif;</code> y observa el cambio.</li>
   </ol>
-  <details>
-    <summary>Pista</summary>
-    <p>Las fuentes se cargan en HTML pero se aplican desde CSS con <code>font-family: 'Nombre', fallback;</code>.</p>
-  </details>
 </div>
 
 <div class="ejercicio">
@@ -261,46 +276,28 @@ createRoot(document.getElementById('root')).render(
     <span class="nivel">★★ Intermedio</span>
   </div>
   <ol>
-    <li>En <code>index.html</code>, cambia <code>&lt;div id="root"&gt;&lt;/div&gt;</code> por <code>&lt;div id="raiz"&gt;&lt;/div&gt;</code>.</li>
+    <li>En <code>index.html</code>, cambia <code>id="root"</code> por <code>id="raiz"</code>.</li>
     <li>Guarda. La página estará en blanco.</li>
-    <li>Abre la consola (F12 → Console) y verás un error tipo <code>Cannot read properties of null (reading ...')</code> porque <code>document.getElementById('root')</code> devuelve <code>null</code>.</li>
+    <li>Abre la consola (F12) y verás <code>Cannot read properties of null</code> porque <code>getElementById('root')</code> devuelve <code>null</code>.</li>
     <li>Deshaz el cambio.</li>
   </ol>
   <details>
     <summary>¿Qué hemos aprendido?</summary>
-    <p>El id del div en <code>index.html</code> tiene que coincidir <em>exactamente</em> con el <code>getElementById</code> en <code>main.jsx</code>. Es el único acoplamiento entre HTML y JS.</p>
+    <p>El id del div tiene que coincidir EXACTO con el <code>getElementById</code> de <code>main.jsx</code>. Es el único acoplamiento HTML↔JS y, justamente por eso, no se debe tocar a la ligera.</p>
   </details>
 </div>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
     <span class="badge-ejercicio">Ejercicio 4</span>
-    <span>Crear contenido "no-React" antes de que cargue</span>
+    <span>Splash screen "no-React"</span>
     <span class="nivel">★★★ Avanzado</span>
   </div>
-  <p>Pon dentro del <code>&lt;div id="root"&gt;</code> un texto: <code>&lt;p&gt;Cargando…&lt;/p&gt;</code>. Recarga la página. ¿Qué ves? ¿Por qué desaparece?</p>
+  <p>Pon dentro del <code>&lt;div id="root"&gt;</code> un texto: <code>&lt;p&gt;Cargando…&lt;/p&gt;</code>. Recarga. ¿Qué ves?</p>
   <details>
     <summary>Respuesta</summary>
-    <p>Se ve "Cargando…" durante una fracción de segundo y desaparece. React, al renderizar, <strong>sustituye</strong> todo el contenido del <code>#root</code> por su propio árbol. Esta técnica se usa como <em>splash screen</em> para mostrar algo mientras el JS carga.</p>
+    <p>Aparece "Cargando…" un instante y desaparece. React, al renderizar, <strong>sustituye</strong> todo el contenido de <code>#root</code> por su árbol. Esta técnica se usa como splash mientras carga el bundle.</p>
   </details>
-</div>
-
-<h2>6. Probar JavaScript en el navegador</h2>
-<p>Antes de pasar a la siguiente sección, comprueba que entiendes que JS se ejecuta en el navegador. Abre F12 → Console y prueba:</p>
-
-<div class="try-it">
-  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Playground (Ctrl+Enter para ejecutar)</div>
-  <textarea spellcheck="false">// Pulsa "Ejecutar" o Ctrl+Enter
-const titulo = document.title;
-console.log('La pestaña se titula:', titulo);
-
-// Calcula la longitud del documento HTML
-console.log('Caracteres del HTML:', document.documentElement.outerHTML.length);</textarea>
-  <div class="try-it-acciones">
-    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
-    <button class="btn-limpiar secundario">Reiniciar</button>
-  </div>
-  <div class="try-it-salida"></div>
 </div>
 
 <div class="callout tip">

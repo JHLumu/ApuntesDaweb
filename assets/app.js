@@ -60,8 +60,9 @@ function conectarEventos() {
   const sidebar = document.getElementById('sidebar');
   const btnMenu = document.getElementById('btnMenu');
   btnMenu.addEventListener('click', () => {
-    sidebar.classList.toggle('abierta');
-    overlay.classList.toggle('activa');
+    const abierta = sidebar.classList.toggle('abierta');
+    overlay.classList.toggle('activa', abierta);
+    document.body.classList.toggle('sidebar-bloqueada', abierta);
   });
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
@@ -69,6 +70,7 @@ function conectarEventos() {
   overlay.addEventListener('click', () => {
     sidebar.classList.remove('abierta');
     overlay.classList.remove('activa');
+    document.body.classList.remove('sidebar-bloqueada');
   });
 
   // Búsqueda
@@ -97,6 +99,19 @@ function alternarTema() {
   document.documentElement.dataset.tema = nuevo;
   localStorage.setItem(LS_TEMA, nuevo);
   actualizarIconoTema();
+  // Reinicia Mermaid con el tema correcto y vuelve a renderizar la sección actual,
+  // porque los SVG ya generados no se re-tintan solos.
+  if (window.__mermaid) {
+    window.__mermaid.initialize({
+      startOnLoad: false,
+      theme: nuevo === 'oscuro' ? 'dark' : 'default',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      sequence: { useMaxWidth: true },
+    });
+    const sec = SECCIONES.find(s => s.id === rutaActual());
+    if (sec) cargarSeccion(sec);
+  }
 }
 function actualizarIconoTema() {
   const tema = document.documentElement.dataset.tema || 'claro';
@@ -158,7 +173,34 @@ function procesarContenido(root, sec) {
   conectarQuizzes(root);
   conectarTabs(root);
   conectarTryIt(root);
+  renderMermaid(root);
+  envolverTablas(root);
   pintarNavAntSig(root, sec);
+}
+
+// Mermaid se carga como ES module en index.html y deja la instancia en window.__mermaid.
+// Cada vez que inyectamos una sección, le pedimos que dibuje los bloques nuevos.
+function renderMermaid(root) {
+  const nodos = root.querySelectorAll('.mermaid:not([data-procesado])');
+  if (!nodos.length) return;
+  const lanzar = () => {
+    nodos.forEach(n => n.setAttribute('data-procesado', '1'));
+    try { window.__mermaid.run({ nodes: nodos }); }
+    catch (err) { console.warn('Mermaid run falló:', err); }
+  };
+  if (window.__mermaid) lanzar();
+  else document.addEventListener('mermaid-listo', lanzar, { once: true });
+}
+
+// Envuelve tablas anchas en un div con scroll horizontal para que no rompan el layout en móvil.
+function envolverTablas(root) {
+  root.querySelectorAll('table').forEach(tabla => {
+    if (tabla.parentElement.classList.contains('tabla-wrap')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'tabla-wrap';
+    tabla.parentNode.insertBefore(wrap, tabla);
+    wrap.appendChild(tabla);
+  });
 }
 
 function pintarNavAntSig(root, sec) {

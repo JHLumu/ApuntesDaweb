@@ -1,12 +1,11 @@
 <h1>Rutas protegidas y roles</h1>
 <p class="subtitulo">Cómo se evita que un anónimo entre a <code>/perfil</code> y que un usuario normal entre a <code>/admin</code>.</p>
 
-<p class="lead">DaWeb tiene tres niveles de acceso: <strong>público</strong> (cualquiera), <strong>autenticado</strong> (requiere login) y <strong>administrador</strong> (rol ADMINISTRADOR). Todo el control vive en un único componente envoltorio: <code>RutaProtegida.jsx</code>. Catorce líneas que se ven en acción en muchas rutas de <code>App.jsx</code>.</p>
+<p class="lead">DaWeb tiene tres niveles de acceso: <strong>público</strong> (cualquiera), <strong>autenticado</strong> (requiere login) y <strong>administrador</strong> (rol ADMINISTRADOR). Todo el control vive en un único componente envoltorio: <code>RutaProtegida.jsx</code>. Catorce líneas que se reutilizan en muchas rutas de <code>App.jsx</code>.</p>
 
 <h2>1. La idea: un componente "guardián"</h2>
-<p>En React, un envoltorio inspecciona el estado y decide si renderiza sus hijos o redirige a otra ruta. Es declarativo y elegante.</p>
 
-<h2>2. El componente <code>RutaProtegida</code></h2>
+<p>En React, un envoltorio lee el estado y decide si renderiza sus hijos o redirige. Es declarativo y elegante. La pieza completa:</p>
 
 <div class="code-wrap">
   <span class="file-label">src/components/RutaProtegida.jsx</span>
@@ -26,48 +25,77 @@ export default RutaProtegida;</code></pre>
 </div>
 
 <h3>Lectura línea a línea</h3>
-<ol>
-  <li>Recibe dos props: <code>children</code> (la página a proteger) y <code>soloAdmin</code> (booleano, por defecto <code>false</code>).</li>
-  <li>Lee del contexto el usuario actual y si es admin.</li>
-  <li>Si NO hay usuario → renderiza <code>&lt;Navigate to="/login" replace /&gt;</code>. React Router detecta esto y cambia la URL a <code>/login</code>.</li>
-  <li>Si la ruta exige admin y el usuario no lo es → redirige a la home.</li>
-  <li>Si supera ambas comprobaciones, renderiza los hijos (la página real).</li>
-</ol>
 
-<div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Sobre <code>replace</code></div>
-  <p><code>&lt;Navigate replace&gt;</code> sustituye la entrada actual del historial. Sin <code>replace</code>, si el usuario pulsa "atrás" volvería a la ruta protegida y se generaría un bucle. Con <code>replace</code>, "atrás" lleva a la página anterior real.</p>
+<div class="tabla-wrap">
+<table class="anotada">
+  <tr><td class="code">{ children, soloAdmin = false }</td><td class="nota">Props: <code>children</code> es la página a proteger; <code>soloAdmin</code> es booleano con default.</td></tr>
+  <tr><td class="code">useAuth()</td><td class="nota">Lee del contexto el usuario actual y si es admin.</td></tr>
+  <tr><td class="code">if (!usuario) → Navigate /login</td><td class="nota">No hay sesión → te mando al login.</td></tr>
+  <tr><td class="code">if (soloAdmin && !esAdmin) → Navigate /</td><td class="nota">Hay sesión pero faltan permisos → te mando a la home.</td></tr>
+  <tr><td class="code">return children</td><td class="nota">Si superas ambas pruebas, renderiza la página real.</td></tr>
+</table>
+</div>
+
+<h2>2. Diagrama de decisión</h2>
+
+<figure class="diagrama">
+  <figcaption>Árbol de decisión de RutaProtegida</figcaption>
+  <pre class="mermaid">
+flowchart TB
+  Start([Llega petición]) --> A{¿usuario != null?}
+  A -- No --> Login["Navigate /login (replace)"]
+  A -- Sí --> B{¿soloAdmin?}
+  B -- No --> Render["return children"]
+  B -- Sí --> C{¿esAdmin?}
+  C -- Sí --> Render
+  C -- No --> Home["Navigate / (replace)"]
+  </pre>
+</figure>
+
+<div class="tip-regla">
+  <strong><code>&lt;Navigate replace&gt;</code> SIEMPRE en flujos de auth.</strong> Sin <code>replace</code>, "atrás" vuelve a la ruta protegida y te re-redirige → bucle infinito. Con <code>replace</code>, "atrás" salta a la página anterior real.
 </div>
 
 <h2>3. Cómo se usa en <code>App.jsx</code></h2>
 
-<h3>Caso 1: requiere login</h3>
+<h3>Requiere login</h3>
 <div class="code-wrap">
-  <span class="file-label">src/App.jsx — fragmento</span>
-<pre><code class="language-jsx">&lt;Route
-  path="/vender"
-  element={
-    &lt;RutaProtegida&gt;
-      &lt;NuevoProducto /&gt;
-    &lt;/RutaProtegida&gt;
-  }
-/&gt;</code></pre>
+<pre><code class="language-jsx">&lt;Route path="/vender" element={
+  &lt;RutaProtegida&gt;
+    &lt;NuevoProducto /&gt;
+  &lt;/RutaProtegida&gt;
+} /&gt;</code></pre>
 </div>
 
-<h3>Caso 2: requiere admin</h3>
+<h3>Requiere admin</h3>
 <div class="code-wrap">
-  <span class="file-label">src/App.jsx — fragmento</span>
-<pre><code class="language-jsx">&lt;Route
-  path="/admin/usuarios"
-  element={
-    &lt;RutaProtegida soloAdmin&gt;
-      &lt;AdminUsuarios /&gt;
-    &lt;/RutaProtegida&gt;
-  }
-/&gt;</code></pre>
+<pre><code class="language-jsx">&lt;Route path="/admin/usuarios" element={
+  &lt;RutaProtegida soloAdmin&gt;
+    &lt;AdminUsuarios /&gt;
+  &lt;/RutaProtegida&gt;
+} /&gt;</code></pre>
 </div>
 
-<p>Recuerda que <code>soloAdmin</code> sin valor explícito equivale a <code>soloAdmin={true}</code>.</p>
+<p><code>soloAdmin</code> sin valor explícito ≡ <code>soloAdmin={true}</code>.</p>
+
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-bounding-box"></i> SOLID · SRP (Single Responsibility)</span>
+  <p><code>RutaProtegida</code> decide acceso, nada más. NO carga datos, NO muestra spinners, NO depende de la página que envuelve. Por eso lo puedes meter delante de cualquier ruta sin preocuparte de qué hace dentro.</p>
+</div>
+
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-arrow-up-circle"></i> SOLID · OCP (Open/Closed)</span>
+  <p>Añadir un nuevo nivel de acceso (p.ej. <code>soloModerador</code>) se hace con una nueva prop y una nueva línea, sin tocar el comportamiento existente. La función no se reescribe; se extiende.</p>
+<div class="code-wrap">
+<pre><code class="language-jsx">function RutaProtegida({ children, soloAdmin = false, soloModerador = false }) {
+  const { usuario, esAdmin, esModerador } = useAuth();
+  if (!usuario) return &lt;Navigate to="/login" replace /&gt;;
+  if (soloAdmin &amp;&amp; !esAdmin) return &lt;Navigate to="/" replace /&gt;;
+  if (soloModerador &amp;&amp; !esModerador &amp;&amp; !esAdmin) return &lt;Navigate to="/" replace /&gt;;
+  return children;
+}</code></pre>
+</div>
+</div>
 
 <h2>4. Catálogo completo de rutas en DaWeb</h2>
 
@@ -80,300 +108,163 @@ export default RutaProtegida;</code></pre>
   <tr><td><code>/productos/:id</code></td><td>Público</td><td>DetalleProducto</td></tr>
   <tr><td><code>/vender</code></td><td>Autenticado</td><td>NuevoProducto</td></tr>
   <tr><td><code>/productos/:id/editar</code></td><td>Autenticado</td><td>EditarProducto</td></tr>
-  <tr><td><code>/perfil</code></td><td>Autenticado</td><td>Perfil (con Outlet)</td></tr>
-  <tr><td><code>/perfil/productos</code></td><td>Autenticado (hereda)</td><td>PerfilProductos</td></tr>
-  <tr><td><code>/perfil/ventas</code></td><td>Autenticado (hereda)</td><td>PerfilVentas</td></tr>
-  <tr><td><code>/perfil/compras</code></td><td>Autenticado (hereda)</td><td>PerfilCompras</td></tr>
+  <tr><td><code>/perfil</code> y subrutas</td><td>Autenticado</td><td>Perfil + Outlet</td></tr>
   <tr><td><code>/usuarios/:id</code></td><td>Autenticado</td><td>PerfilUsuario</td></tr>
   <tr><td><code>/admin/usuarios</code></td><td>Admin</td><td>AdminUsuarios</td></tr>
   <tr><td><code>/admin/transacciones</code></td><td>Admin</td><td>AdminTransacciones</td></tr>
   <tr><td><code>*</code></td><td>Público</td><td>Error404</td></tr>
 </table>
 
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Esto NO es seguridad</div>
-  <p>La protección de rutas en el frontend es <strong>cómoda</strong>, no <strong>segura</strong>. Cualquier usuario malintencionado puede saltarse la comprobación editando el JavaScript en su navegador. La SEGURIDAD real es del backend: rechaza con 401/403 cualquier petición sin token válido o sin rol adecuado. Lo del frontend es sólo para mejor experiencia (que no veas pantallas a las que no tienes acceso).</p>
-</div>
-
-<h2>5. El permiso de la barra superior</h2>
-<p>El menú de admin sólo aparece si <code>esAdmin</code>:</p>
+<h2>5. La protección también va en la UI: menú admin oculto</h2>
 
 <div class="code-wrap">
-  <span class="file-label">src/components/Header.jsx — fragmento</span>
+  <span class="file-label">src/components/Header.jsx</span>
 <pre><code class="language-jsx">{esAdmin &amp;&amp; (
   &lt;&gt;
-    &lt;li className="nav-item"&gt;
-      &lt;NavLink className="header-link" to="/admin/usuarios"&gt;Usuarios&lt;/NavLink&gt;
-    &lt;/li&gt;
-    &lt;li className="nav-item"&gt;
-      &lt;NavLink className="header-link" to="/admin/transacciones"&gt;Compraventas&lt;/NavLink&gt;
-    &lt;/li&gt;
+    &lt;NavLink to="/admin/usuarios"&gt;Usuarios&lt;/NavLink&gt;
+    &lt;NavLink to="/admin/transacciones"&gt;Compraventas&lt;/NavLink&gt;
   &lt;/&gt;
 )}</code></pre>
 </div>
 
-<h2>6. Flujo de redirección</h2>
-
-<div class="flujo">
-  <div class="flujo-paso"><span class="num">1</span> Usuario anónimo escribe en la barra del navegador: <code>http://localhost:5173/perfil</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> React Router matchea <code>/perfil</code> y monta <code>RutaProtegida</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> Dentro, <code>useAuth()</code> dice <code>usuario === null</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">4</span> <code>RutaProtegida</code> devuelve <code>&lt;Navigate to="/login" replace /&gt;</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">5</span> React Router cambia la URL a <code>/login</code> y monta el formulario.</div>
-</div>
-
-<h2>7. Teoría profunda: lo que el entrevistador sabe</h2>
-
-<h3>Autenticación vs Autorización: dos conceptos distintos</h3>
-<p>El JWT hace ambas cosas en DaWeb y es importante distinguirlas:</p>
+<h2>6. Autenticación vs Autorización</h2>
 
 <table>
   <tr><th></th><th>Autenticación</th><th>Autorización</th></tr>
-  <tr><td><strong>Pregunta</strong></td><td>"¿Eres quien dices ser?"</td><td>"¿Tienes permiso para esto?"</td></tr>
-  <tr><td><strong>En DaWeb</strong></td><td>La firma criptográfica del JWT. Solo el backend con su clave secreta puede firmar un token válido.</td><td>El array <code>roles</code> en el payload del JWT. El backend comprueba que el rol incluye el permiso requerido.</td></tr>
-  <tr><td><strong>Ejemplo</strong></td><td>Un usuario con token válido está autenticado.</td><td>Solo si <code>roles.includes('ADMINISTRADOR')</code> puede acceder a <code>/admin/usuarios</code>.</td></tr>
+  <tr><td>Pregunta</td><td>"¿Eres quien dices ser?"</td><td>"¿Tienes permiso para esto?"</td></tr>
+  <tr><td>En DaWeb</td><td>Firma criptográfica del JWT.</td><td>Array <code>roles</code> en el payload.</td></tr>
+  <tr><td>Ejemplo</td><td>Usuario con token válido = autenticado.</td><td>Sólo si <code>roles.includes('ADMINISTRADOR')</code> = autorizado a /admin/*.</td></tr>
 </table>
 
-<p>Un caso donde ambas son insuficientes: si el usuario A intenta editar el producto del usuario B. A está autenticado (tiene JWT válido) y autorizado (tiene rol USUARIO). Pero no tiene permiso sobre ESE producto. El backend debe comprobar que <code>idVendedor === idUsuarioToken</code> en la petición.</p>
+<p>Caso donde ambas son insuficientes: usuario A intenta editar producto de B. A está autenticado y autorizado (rol USUARIO), pero no tiene permiso sobre ESE producto. El backend debe comprobar <code>idVendedor === idUsuarioToken</code>.</p>
 
-<h3>Por qué la protección frontend NO es seguridad — técnicamente</h3>
-<p>El bundle JavaScript de la app es código público. Cualquiera puede:</p>
-<ol>
-  <li>Abrir DevTools → Sources → buscar y leer el código de <code>RutaProtegida</code>.</li>
-  <li>Desde la consola, insertar un token manipulado en localStorage (el frontend lo aceptaría, el backend lo rechazaría al verificar la firma).</li>
-  <li>Usar una herramienta como Postman para llamar directamente a endpoints de la API ignorando el frontend por completo.</li>
-</ol>
+<h2>7. La gran advertencia: el frontend NO es seguridad</h2>
 
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> La seguridad real está en el backend</div>
-  <p>El backend ArSo verifica el JWT en <strong>cada</strong> petición: comprueba la firma, la expiración, y el rol del claims. Si alguien evita <code>RutaProtegida</code> y llama directamente a <code>/api/admin/usuarios</code> sin un JWT de admin válido, el backend devolverá 403. La protección del frontend es <em>experiencia de usuario</em>, no seguridad.</p>
+<div class="callout danger">
+  <div class="callout-titulo"><i class="bi bi-shield-exclamation"></i> El bundle JavaScript es código público</div>
+  <p>Cualquiera puede: (1) abrir DevTools y leer <code>RutaProtegida</code>; (2) inyectar un token falso en localStorage; (3) saltarse la UI y llamar directamente a <code>/api/admin/usuarios</code> con curl o Postman. <strong>La seguridad real está en el backend</strong>, que verifica firma + expiración + rol en CADA petición.</p>
 </div>
 
-<h3><code>replace</code> en Navigate: el problema del bucle de historial</h3>
-<p>El historial del navegador es una pila de entradas. <code>push</code> añade encima; <code>replace</code> sustituye la entrada actual:</p>
+<div class="tip-regla">
+  <strong>Frontend protege la UX; backend protege la seguridad.</strong> Memorízalo. Si un entrevistador te pregunta "¿cómo está protegida la ruta?", tu respuesta debe mencionar ambas capas.
+</div>
+
+<h2>8. Comparación de las cuatro capas de defensa</h2>
+
+<figure class="diagrama">
+  <figcaption>Qué bloquea qué (intento de acceso a /admin/usuarios por usuario normal)</figcaption>
+  <pre class="mermaid">
+flowchart TB
+  A["Caso A: navegación normal por la UI"] --> A1["Header: {esAdmin && ...} → link oculto"]
+  A1 --> A2["Bloqueo de UX"]
+  B["Caso B: escribe /admin/usuarios en la barra"] --> B1["RutaProtegida → Navigate /"]
+  B1 --> B2["Bloqueo de UX"]
+  C["Caso C: fetch directo con su JWT (no admin)"] --> C1["Backend valida firma + rol"]
+  C1 --> C2["HTTP 403 Forbidden ⇐ ÚNICO bloqueo real"]
+  D["Caso D: inyecta JWT forjado en localStorage"] --> D1["Frontend lo cree, deja pasar"]
+  D1 --> D2["Backend recalcula firma → no coincide"]
+  D2 --> D3["HTTP 401 Unauthorized ⇐ bloqueo real"]
+  </pre>
+</figure>
+
+<h2>9. Flujo de redirección detallado</h2>
+
+<figure class="diagrama">
+  <figcaption>Anónimo entra a /perfil</figcaption>
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as Usuario
+  participant N as Navegador
+  participant R as React Router
+  participant RP as RutaProtegida
+  participant A as AuthContext
+  U->>N: teclea /perfil
+  N->>R: History push
+  R->>RP: monta &lt;RutaProtegida&gt;
+  RP->>A: useAuth()
+  A-->>RP: { usuario: null, esAdmin: false }
+  RP-->>R: &lt;Navigate to="/login" replace /&gt;
+  R->>R: replaceState → URL = /login
+  R->>U: monta &lt;Login /&gt;
+  </pre>
+</figure>
+
+<h2>10. <code>replace</code> en Navigate: el bucle del botón "Atrás"</h2>
 
 <div class="dos-cols">
   <div class="tarjeta">
-    <h4>Sin <code>replace</code> (bug)</h4>
+    <h4>❌ Sin replace</h4>
 <pre><code class="language-text">Historial: [/, /perfil, /login]
-                              ↑ actual
-
-Pulso "Atrás" →
-actual = /perfil
-
-React Router monta RutaProtegida
-→ usuario === null
-→ Navigate to="/login" (sin replace)
-→ Historial: [/, /perfil, /login, /login]
-
-Bucle infinito de redirecciones</code></pre>
+"Atrás" → /perfil
+RutaProtegida → Navigate /login (push)
+Historial: [/, /perfil, /login, /login]
+Bucle infinito</code></pre>
   </div>
   <div class="tarjeta">
-    <h4>Con <code>replace</code> (correcto)</h4>
+    <h4>✅ Con replace</h4>
 <pre><code class="language-text">Historial: [/, /perfil]
-                 ↑ actual
-
-Voy a /perfil → redirige a /login con replace
+/perfil → Navigate /login (replace)
 Historial: [/, /login]
-(↑ /perfil sustituido)
-
-Pulso "Atrás" →
-actual = / (home)
-¡Sin bucle!</code></pre>
+"Atrás" → / (home)
+Sin bucle</code></pre>
   </div>
 </div>
 
-<h3>Prop booleana en JSX: el atajo de <code>soloAdmin</code></h3>
-<div class="code-wrap">
-<pre><code class="language-jsx">// Estas tres formas son completamente equivalentes:
-&lt;RutaProtegida soloAdmin /&gt;
-&lt;RutaProtegida soloAdmin={true} /&gt;
-&lt;RutaProtegida soloAdmin={1 === 1} /&gt;</code></pre>
-</div>
-<p>Un atributo JSX sin valor asignado es siempre <code>true</code>. Viene de HTML donde <code>&lt;input required&gt;</code> equivale a <code>&lt;input required=""&gt;</code>. En JSX: prop sin valor = prop con valor <code>true</code>.</p>
+<h2>11. Preguntas trampa frecuentes</h2>
 
-<h3>Cómo <code>RutaProtegida</code> conoce el estado sin recibir props</h3>
-<div class="code-wrap">
-<pre><code class="language-jsx">function RutaProtegida({ children, soloAdmin = false }) {
-  const { usuario, esAdmin } = useAuth();  // ← lee del contexto
-  // ...
-}</code></pre>
-</div>
-<p><code>useAuth()</code> llama a <code>useContext(AuthContext)</code>. Esto funciona porque <code>AuthProvider</code> envuelve toda la app en <code>App.jsx</code>, por encima de <code>BrowserRouter</code>. Por eso cualquier componente en cualquier nivel del árbol puede leer el contexto sin que los intermediarios le pasen la info como prop.</p>
-
-<h3>Diagrama de decisión: cómo RutaProtegida decide qué renderizar</h3>
-
-<div class="code-wrap">
-  <span class="file-label">flujo de decisión de RutaProtegida</span>
-<pre><code class="language-text">         Navegador llega a una URL protegida
-                      │
-                      ▼
-         ┌──────────────────────────────┐
-         │ React Router matchea la ruta │
-         │ y monta <RutaProtegida>      │
-         └──────────────┬───────────────┘
-                        │
-                        ▼
-         ┌──────────────────────────────┐
-         │ useAuth() lee AuthContext    │
-         │ → { usuario, esAdmin }       │
-         └──────────────┬───────────────┘
-                        │
-                        ▼
-                ¿usuario === null?
-                 ╱            ╲
-              SÍ              NO
-               │               │
-               ▼               ▼
-      <Navigate           ¿soloAdmin && !esAdmin?
-      to="/login"            ╱           ╲
-      replace />          SÍ             NO
-                          │               │
-                          ▼               ▼
-                  <Navigate         return children
-                  to="/" replace/>  (renderiza la página)</code></pre>
-</div>
-
-<h3>Diagrama de interacción: usuario anónimo intentando entrar a /perfil</h3>
-
-<div class="code-wrap">
-  <span class="file-label">trazado completo de la redirección</span>
-<pre><code class="language-text">Usuario   Navegador   ReactRouter   RutaProtegida   AuthContext   localStorage
-  │          │             │              │               │              │
-  │ teclea   │             │              │               │              │
-  │ /perfil  │             │              │               │              │
-  │ ────────▶│             │              │               │              │
-  │          │ History API push │         │               │              │
-  │          │ ──────────▶│              │               │              │
-  │          │             │ matchea /perfil → monta:    │              │
-  │          │             │ <RutaProtegida>             │              │
-  │          │             │   <Perfil/>                 │              │
-  │          │             │ </RutaProtegida>            │              │
-  │          │             │ ────────────▶│               │              │
-  │          │             │              │ useAuth() ──▶│              │
-  │          │             │              │               │ usuarioDesdeToken()
-  │          │             │              │               │  ├── getToken()─▶
-  │          │             │              │               │  │              │ null
-  │          │             │              │               │  └── return null│
-  │          │             │              │ ◀── {usuario:null, esAdmin:false}
-  │          │             │              │ if (!usuario) return         │
-  │          │             │              │   <Navigate to="/login" replace/>
-  │          │             │ ◀── element  │               │              │
-  │          │             │ Navigate dispara replaceState │              │
-  │          │ ◀── URL='/login'           │               │              │
-  │          │             │ matchea /login → monta <Login/>             │
-  │ ve form ◀│             │              │               │              │
-  │ de login │             │              │               │              │</code></pre>
-</div>
-
-<h3>Comparación: protección frontend vs protección real (backend)</h3>
-
-<div class="code-wrap">
-  <span class="file-label">qué hace cada capa cuando un USUARIO normal intenta GET /api/usuarios</span>
-<pre><code class="language-text">Caso A: Usuario navega normal por la UI
-─────────────────────────────────────────
-  Header.jsx → {esAdmin && <NavLink to="/admin/usuarios">...} → NO se pinta
-  ↓
-  Usuario no ve el link, no llega a la página → bloqueo de UX (no de seguridad)
-
-
-Caso B: Usuario escribe /admin/usuarios en la barra de URL
-──────────────────────────────────────────────────────────
-  RutaProtegida → useAuth() → esAdmin=false
-  ↓
-  <Navigate to="/" replace/> → vuelve a la home → bloqueo de UX
-
-
-Caso C: Atacante llama a /api/usuarios directamente con su JWT (no admin)
-────────────────────────────────────────────────────────────────────────
-  fetch('/api/usuarios', { headers: {Authorization: 'Bearer mi-jwt'}})
-  ↓
-  Vite proxy → Backend ArSo
-  ↓
-  Spring Security verifica firma del JWT → OK
-  ↓
-  Comprueba que el rol del JWT incluye ADMINISTRADOR → ❌ NO
-  ↓
-  HTTP 403 Forbidden → ÚNICO bloqueo de SEGURIDAD REAL
-
-
-Caso D: Atacante inyecta token forjado en localStorage
-──────────────────────────────────────────────────────
-  localStorage.setItem('arso_token', 'eyJ.payload-modificado.firma-falsa')
-  ↓
-  RutaProtegida ve roles=ADMINISTRADOR en el payload local → DEJA PASAR
-  ↓
-  Pero al llamar /api/admin/usuarios:
-  ↓
-  Backend recalcula firma del JWT → no coincide con la del token
-  ↓
-  HTTP 401 Unauthorized → bloqueo de seguridad real</code></pre>
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "Si degradan a un admin en el servidor pero su JWT no ha expirado, ¿sigue siendo admin?"</div>
+  <p>Sí, hasta que expire. El JWT lleva el rol en el payload. Es la limitación del JWT stateless. Solución completa: tokens cortos (15-30 min) + refresh tokens.</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-shield-exclamation"></i> Conclusión del diagrama</div>
-  <p>Los casos A y B son comodidad. El bloqueo real ocurre en el backend (caso C y D). Sin esa última línea de defensa, todo el frontend es inútil. Por eso a un experto NUNCA le bastará con que muestres <code>RutaProtegida</code>: querrá saber que el backend valida también.</p>
-</div>
-
-
-
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
-  <p><strong>"¿Qué pasaría si un admin es degradado a usuario en el servidor pero su JWT no ha expirado?"</strong> — Sigue teniendo el rol ADMINISTRADOR en el payload del JWT hasta que expire. Puede acceder a rutas de admin hasta ese momento. Esta es la limitación fundamental del JWT stateless. La solución completa son tokens de corta vida (15-30 min) + refresh tokens. Con tokens de 24h, el admin degradado mantiene acceso hasta un día.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué dos comprobaciones separadas en RutaProtegida?"</div>
+  <p>Porque redirigen a destinos distintos. Sin login → <code>/login</code> (necesita autenticarse). Con login pero sin rol → <code>/</code> (ya está autenticado, mandarlo otra vez al login confunde).</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
-  <p><strong>"¿Por qué hay dos comprobaciones separadas en <code>RutaProtegida</code> en lugar de una sola?"</strong> — Porque redirigen a destinos distintos. Un usuario no logueado debe ir a <code>/login</code> para autenticarse. Un usuario logueado sin rol admin ya está autenticado — mandarlo a <code>/login</code> sería confuso. Se le manda a <code>/</code> (home) porque sí puede usarla y no necesita autenticarse de nuevo.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Podría un usuario normal llamar a /api/admin/usuarios?"</div>
+  <p>Desde la UI no llega. Pero con curl/Postman con su JWT, el backend debería responder 403 (su JWT no incluye ADMINISTRADOR). Si NO lo hace, sería un fallo de autorización en el backend.</p>
 </div>
 
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
-  <p><strong>"¿Podría un usuario normal llamar a <code>GET /api/admin/usuarios</code> directamente?"</strong> — Desde el frontend con <code>RutaProtegida</code>, no llega a la interfaz. Pero si hace la petición HTTP directamente (Postman, curl) con su JWT de usuario normal, el backend debería devolver 403 porque el JWT no incluye el rol ADMINISTRADOR. Si el backend no comprueba el rol en ese endpoint, sería una vulnerabilidad de autorización en el backend.</p>
-</div>
-
-<h2>8. Quiz</h2>
+<h2>12. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
-  <p class="quiz-pregunta">Un usuario normal (no admin) escribe <code>/admin/usuarios</code> en el navegador. ¿Qué pasa?</p>
+  <p class="quiz-pregunta">Un usuario normal escribe <code>/admin/usuarios</code>. ¿Qué pasa?</p>
   <div class="quiz-opciones">
     <button class="quiz-opcion" data-correcta="0">Ve la página igual.</button>
     <button class="quiz-opcion" data-correcta="1">Es redirigido a la home <code>/</code>.</button>
     <button class="quiz-opcion" data-correcta="0">Va al login.</button>
-    <button class="quiz-opcion" data-correcta="0">Aparece error 403 a pantalla completa.</button>
+    <button class="quiz-opcion" data-correcta="0">Aparece 403 a pantalla completa.</button>
   </div>
-  <p class="quiz-feedback" data-ok="Bien. Mira RutaProtegida: si esAdmin es false, &lt;Navigate to='/' /&gt;." data-ko="Pista: hay dos comprobaciones — login y rol. Cada una redirige a un sitio distinto."></p>
+  <p class="quiz-feedback" data-ok="Bien. esAdmin=false → Navigate to='/'." data-ko="Dos comprobaciones: login y rol; cada una a sitio distinto."></p>
 </div>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
   <p class="quiz-pregunta">¿Cómo se determina si un usuario es admin?</p>
   <div class="quiz-opciones">
-    <button class="quiz-opcion" data-correcta="0">El backend devuelve un campo <code>esAdmin: true</code>.</button>
-    <button class="quiz-opcion" data-correcta="1">Por su array de roles en el JWT decodificado: <code>roles.includes('ADMINISTRADOR')</code>.</button>
-    <button class="quiz-opcion" data-correcta="0">Por el email (los que terminan en @admin.com).</button>
-    <button class="quiz-opcion" data-correcta="0">Por su id (los menores que 10).</button>
+    <button class="quiz-opcion" data-correcta="0">El backend devuelve <code>esAdmin: true</code>.</button>
+    <button class="quiz-opcion" data-correcta="1"><code>roles.includes('ADMINISTRADOR')</code> en el JWT decodificado.</button>
+    <button class="quiz-opcion" data-correcta="0">Por el email.</button>
+    <button class="quiz-opcion" data-correcta="0">Por el id.</button>
   </div>
-  <p class="quiz-feedback" data-ok="Bien. Ve AuthContext.jsx: const esAdmin = usuario?.roles.includes('ADMINISTRADOR')." data-ko="El cálculo está en AuthContext.jsx, derivado del array roles del payload del JWT."></p>
+  <p class="quiz-feedback" data-ok="En AuthContext: const esAdmin = usuario?.roles.includes('ADMINISTRADOR')." data-ko="Cálculo derivado del array roles del payload."></p>
 </div>
 
-<h2>9. Ejercicios</h2>
+<h2>13. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
     <span class="badge-ejercicio">Ejercicio 1</span>
-    <span>Comprobar el flujo de redirección manualmente</span>
+    <span>Probar la redirección</span>
     <span class="nivel">★ Muy fácil</span>
   </div>
   <ol>
-    <li>Asegúrate de no tener sesión iniciada (en consola: <code>localStorage.removeItem('arso_token')</code>; recarga).</li>
-    <li>Escribe <code>/perfil</code> en la barra del navegador.</li>
-    <li>Comprueba que automáticamente apareces en <code>/login</code>.</li>
+    <li><code>localStorage.removeItem('arso_token')</code>; recarga.</li>
+    <li>Escribe <code>/perfil</code> en la barra.</li>
+    <li>Acabas en <code>/login</code> automáticamente.</li>
   </ol>
 </div>
 
@@ -383,66 +274,44 @@ Caso D: Atacante inyecta token forjado en localStorage
     <span>Proteger una ruta nueva</span>
     <span class="nivel">★★ Intermedio</span>
   </div>
-  <p>Recuerdas la ruta <code>/acerca</code> del ejercicio de la sección 05. Protégela para que sólo accedan usuarios autenticados:</p>
 <pre><code class="language-jsx">&lt;Route path="/acerca" element={
-  &lt;RutaProtegida&gt;
-    &lt;AcercaDe /&gt;
-  &lt;/RutaProtegida&gt;
+  &lt;RutaProtegida&gt;&lt;AcercaDe /&gt;&lt;/RutaProtegida&gt;
 } /&gt;</code></pre>
 </div>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
     <span class="badge-ejercicio">Ejercicio 3</span>
-    <span>Añadir un nuevo rol "MODERADOR"</span>
+    <span>Añadir rol MODERADOR</span>
     <span class="nivel">★★★ Avanzado</span>
   </div>
-  <p>Imagina que el backend ahora devuelve un rol nuevo <code>MODERADOR</code>. Adapta el frontend:</p>
   <ol>
-    <li>En <code>AuthContext.jsx</code>, añade:
-<pre><code class="language-jsx">const esModerador = (usuario?.roles ?? []).includes('MODERADOR');</code></pre>
-    Y exponlo en el value del Provider.</li>
-    <li>Modifica <code>RutaProtegida</code> para aceptar una prop <code>soloModerador</code>:
-<pre><code class="language-jsx">function RutaProtegida({ children, soloAdmin = false, soloModerador = false }) {
-  const { usuario, esAdmin, esModerador } = useAuth();
-  if (!usuario) return &lt;Navigate to="/login" replace /&gt;;
-  if (soloAdmin &amp;&amp; !esAdmin) return &lt;Navigate to="/" replace /&gt;;
-  if (soloModerador &amp;&amp; !esModerador &amp;&amp; !esAdmin) return &lt;Navigate to="/" replace /&gt;;
-  return children;
-}</code></pre>
-    Nota cómo damos permiso al admin aunque pidamos sólo moderador: jerarquía.</li>
-    <li>Usa en alguna ruta nueva: <code>&lt;RutaProtegida soloModerador&gt;...&lt;/RutaProtegida&gt;</code>.</li>
+    <li>En <code>AuthContext.jsx</code>: <code>const esModerador = usuario?.roles?.includes('MODERADOR');</code></li>
+    <li>Añade prop <code>soloModerador</code> a <code>RutaProtegida</code> con la jerarquía: admin también pasa.</li>
+    <li>Úsalo: <code>&lt;RutaProtegida soloModerador&gt;...&lt;/RutaProtegida&gt;</code>.</li>
   </ol>
 </div>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
     <span class="badge-ejercicio">Ejercicio 4</span>
-    <span>Recordar la URL de origen tras el login</span>
+    <span>Recordar la URL de origen tras login</span>
     <span class="nivel">★★★ Avanzado</span>
   </div>
-  <p>Mejora: si un usuario intenta entrar a <code>/vender</code> sin login, redirige a <code>/login?desde=/vender</code> y, tras login OK, devuélvelo a <code>/vender</code>.</p>
-  <ol>
-    <li>En <code>RutaProtegida</code>, usa <code>useLocation</code> para conseguir la ruta actual:
-<pre><code class="language-jsx">import { Navigate, useLocation } from 'react-router-dom';
-// ...
+<pre><code class="language-jsx">// En RutaProtegida
+import { Navigate, useLocation } from 'react-router-dom';
 const location = useLocation();
 if (!usuario) {
   return &lt;Navigate to={`/login?desde=${encodeURIComponent(location.pathname)}`} replace /&gt;;
-}</code></pre>
-    </li>
-    <li>En <code>Login.jsx</code>, lee el parámetro y navega allí tras login:
-<pre><code class="language-jsx">import { useSearchParams } from 'react-router-dom';
-// ...
+}
+
+// En Login.jsx
 const [sp] = useSearchParams();
 const desde = sp.get('desde') || '/';
-// Al final del login:
 if (res.ok) navegar(desde);</code></pre>
-    </li>
-  </ol>
 </div>
 
 <div class="callout tip">
   <div class="callout-titulo"><i class="bi bi-lightbulb"></i> Para la entrevista</div>
-  <p>Si te preguntan "¿cómo se protege una ruta?", responde con esta estructura: (1) Hay un componente envoltorio <code>RutaProtegida</code> que lee el contexto de autenticación. (2) Si no hay usuario, devuelve <code>&lt;Navigate to="/login"&gt;</code>. (3) Si requiere admin y no lo es, devuelve <code>&lt;Navigate to="/"&gt;</code>. (4) En <code>App.jsx</code> se envuelve la página dentro del componente. (5) Importante: <strong>esto es UX, no seguridad real</strong> — la seguridad está en el backend.</p>
+  <p>"¿Cómo se protege una ruta?" → (1) Envoltorio <code>RutaProtegida</code> que lee el contexto. (2) Sin usuario → <code>&lt;Navigate /login&gt;</code>. (3) Sin rol → <code>&lt;Navigate /&gt;</code>. (4) Se envuelve en <code>App.jsx</code>. (5) <strong>UX no seguridad</strong>; el backend valida en cada petición.</p>
 </div>

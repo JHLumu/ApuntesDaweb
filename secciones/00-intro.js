@@ -2,127 +2,211 @@ window.__SECC = window.__SECC || {};
 window.__SECC["intro"] = `<h1>Introducción y puesta en marcha</h1>
 <p class="subtitulo">Visión global del proyecto, tecnologías y cómo levantar el entorno desde cero.</p>
 
-<p class="lead">DaWeb Reventas es un marketplace de productos de segunda mano (estilo Wallapop). Esta sección te explica de dónde sale cada tecnología que aparecerá luego, por qué se usa y cómo arrancar el proyecto en tu ordenador para experimentar mientras lees el tutorial.</p>
+<p class="lead">DaWeb Reventas es un marketplace de productos de segunda mano (estilo Wallapop). Antes de tocar una sola línea de código necesitas dos cosas: un <strong>modelo mental</strong> de qué pieza vive dónde (frontend, backend, base de datos, navegador) y un <strong>vocabulario común</strong> con el resto de tecnologías que aparecerán durante el tutorial. Esta sección cumple las dos.</p>
 
 <div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Para empezar</div>
-  <p>Asume que no sabes nada. Cada concepto se explica antes de usarlo. Si una palabra te suena rara, búscala en este tutorial con <span class="kbd">Ctrl</span> + <span class="kbd">K</span>.</p>
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Cómo leer el tutorial</div>
+  <p>Cada sección está pensada para leerse de principio a fin. Los conceptos se introducen una vez y se reutilizan después, así que no saltes hacia adelante. Si una palabra te suena rara, búscala con <span class="kbd">Ctrl</span> + <span class="kbd">K</span>.</p>
 </div>
 
-<h2>1. ¿Qué es una aplicación web?</h2>
-<p>Una aplicación web tiene dos partes claramente separadas:</p>
+<h2>1. El problema que resuelve DaWeb</h2>
+
+<p>Un usuario quiere vender una bici de segunda mano. La sube con foto, precio y descripción. Otro usuario la encuentra filtrando por categoría y precio, ve el detalle, y la compra. El sistema debe recordar quién hizo qué, quién pagó, y mostrar a cada usuario "sus" cosas. <strong>Eso</strong> es DaWeb. Cualquier complejidad técnica que veas más adelante existe para soportar ese flujo.</p>
+
+<p>Ese flujo se reparte entre <strong>dos mundos</strong> que viven en máquinas distintas pero hablan entre sí:</p>
 
 <div class="dos-cols">
   <div class="tarjeta">
-    <h4><i class="bi bi-window"></i> Frontend</h4>
-    <p>Lo que ves y manipulas. Vive en tu navegador (Chrome, Firefox…). Está hecho de:</p>
+    <h4><i class="bi bi-window"></i> Frontend (tu navegador)</h4>
+    <p>La interfaz visible. Hecha de:</p>
     <ul>
-      <li><strong>HTML</strong>: la estructura (qué hay en la página).</li>
-      <li><strong>CSS</strong>: la apariencia (colores, espacios, tipografía).</li>
-      <li><strong>JavaScript</strong>: el comportamiento (clicks, llamadas a servidor, animaciones).</li>
+      <li><strong>HTML</strong>: la estructura.</li>
+      <li><strong>CSS</strong>: la apariencia.</li>
+      <li><strong>JavaScript</strong>: el comportamiento.</li>
     </ul>
-    <p>En DaWeb el frontend está construido con <strong>React</strong>, una librería que añade superpoderes a HTML+CSS+JS.</p>
+    <p>En DaWeb construido con <strong>React</strong>, que añade superpoderes a HTML+CSS+JS para componer interfaces reutilizables.</p>
   </div>
   <div class="tarjeta">
-    <h4><i class="bi bi-hdd-stack"></i> Backend</h4>
-    <p>Lo que no ves. Vive en un servidor remoto. Guarda los datos en una base de datos (MySQL) y responde a peticiones del frontend.</p>
-    <p>En DaWeb el backend es un proyecto Java de la asignatura ArSo (no lo tocamos en este tutorial) que expone una API REST en <code>http://localhost:8090</code>.</p>
+    <h4><i class="bi bi-hdd-stack"></i> Backend (un servidor)</h4>
+    <p>La lógica de negocio y la base de datos. No lo ves. Vive en otra máquina (o en otro puerto). Guarda usuarios, productos y compraventas en <strong>MySQL</strong> y responde a las peticiones HTTP del frontend.</p>
+    <p>En DaWeb es un proyecto Java de la asignatura ArSo, expuesto como API REST en <code>http://localhost:8090</code>. No lo tocas en este tutorial; sólo lo consumes.</p>
   </div>
 </div>
 
-<h3>Cómo se hablan</h3>
-<div class="flujo">
-  <div class="flujo-paso"><span class="num">1</span> Tu navegador carga la web desde <code>http://localhost:5173</code> (frontend Vite).</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> La web hace una petición HTTP a <code>/api/productos</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> Vite la reenvía a <code>http://localhost:8090/productos</code> (el backend).</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">4</span> El backend consulta la base de datos MySQL y responde con un JSON.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">5</span> El frontend recibe el JSON y pinta los productos.</div>
+<h2>2. Modelo mental: cómo se hablan las piezas</h2>
+
+<p>Antes del código, fíjate en este diagrama. Es el mismo flujo que se repite en cada acción de la web: el navegador pide, alguien responde.</p>
+
+<figure class="diagrama">
+  <figcaption>Flujo de una petición típica</figcaption>
+  <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant N as Navegador
+  participant V as Vite Dev Server (:5173)
+  participant B as Backend ArSo (:8090)
+  participant DB as MySQL
+  N->>V: GET / (carga index.html)
+  V-->>N: HTML + main.jsx
+  N->>N: React monta App y pinta UI
+  N->>V: fetch('/api/productos')
+  V->>B: GET /productos (proxy)
+  B->>DB: SELECT * FROM productos
+  DB-->>B: filas
+  B-->>V: JSON HAL
+  V-->>N: JSON HAL
+  N->>N: setState → React re-renderiza la lista
+  </pre>
+</figure>
+
+<div class="tip-regla">
+  Cuando algo no funciona en la web, <strong>localiza primero el paso del diagrama que falla</strong>: ¿el navegador pidió bien? ¿el backend respondió? ¿el JSON era el esperado? Eso reduce el bug a una sola capa.
 </div>
 
-<h2>2. Las tecnologías una a una</h2>
+<h2>3. Arquitectura completa del sistema</h2>
+
+<p>El diagrama anterior es la película de UNA petición. Este otro es la foto del sistema entero (qué módulo vive dónde):</p>
+
+<figure class="diagrama">
+  <figcaption>Mapa físico de las piezas</figcaption>
+  <pre class="mermaid">
+flowchart TB
+  subgraph Nav["NAVEGADOR (Chrome / Firefox)"]
+    direction TB
+    Pages["pages/*.jsx (rutas)"]
+    Components["components/*.jsx"]
+    Context["context/AuthContext"]
+    Api["api/*.js + client.js"]
+    LS[("localStorage<br/>(JWT)")]
+    Pages --> Components
+    Pages --> Context
+    Pages --> Api
+    Context --> LS
+    Api --> Context
+  end
+  Nav -- "fetch('/api/...')" --> Vite
+  Vite["Vite Dev Server :5173<br/>· sirve index.html + JS<br/>· proxy /api → :8090<br/>· HMR vía WebSocket"]
+  Vite -- "HTTP (sin CORS, mismo origen)" --> Back
+  Back["Backend ArSo (Java :8090)<br/>· REST + Spring HATEOAS<br/>· JWT firmado HS256<br/>· OAuth2 con GitHub"]
+  Back -- "JDBC" --> DB[("MySQL<br/>usuarios · productos<br/>compraventas · categorías")]
+  </pre>
+</figure>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Cómo leer este diagrama</div>
+  <p>Las flechas son "llama a" o "envía datos a". <code>api/client.js</code> es el nodo más profundo del frontend: si lo modificas, afecta a TODA la app. Si modificas una página, sólo le afecta a ella. Esto te dará la regla "tocar de fuera hacia dentro" cuando hagas cambios.</p>
+</div>
+
+<h2>4. Las tecnologías y por qué cada una</h2>
+
+<p>Cuando alguien lista tecnologías sin justificar, queda como una sopa de letras. Aquí cada fila responde a "<em>¿qué se rompería sin esto?</em>":</p>
+
 <table>
   <thead>
-    <tr><th>Tecnología</th><th>Para qué sirve</th><th>Dónde aparece</th></tr>
+    <tr><th>Tecnología</th><th>Qué se rompe sin ella</th><th>Dónde se ve en el código</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>HTML</strong></td><td>Estructura básica</td><td><code>index.html</code></td></tr>
-    <tr><td><strong>CSS</strong></td><td>Estilos visuales</td><td><code>*.css</code></td></tr>
-    <tr><td><strong>JavaScript (ES6+)</strong></td><td>Lógica del navegador</td><td><code>*.js</code>, <code>*.jsx</code></td></tr>
-    <tr><td><strong>React</strong></td><td>Componentes reutilizables</td><td><code>*.jsx</code></td></tr>
-    <tr><td><strong>JSX</strong></td><td>HTML dentro de JavaScript</td><td><code>*.jsx</code></td></tr>
-    <tr><td><strong>React Router DOM</strong></td><td>Cambiar páginas sin recargar</td><td><code>App.jsx</code></td></tr>
-    <tr><td><strong>React Bootstrap</strong></td><td>Componentes ya hechos (botones, tablas, cards)</td><td>imports de <code>react-bootstrap</code></td></tr>
-    <tr><td><strong>Bootstrap 5</strong></td><td>Sistema de clases CSS responsive</td><td>clases como <code>col-md-6</code></td></tr>
-    <tr><td><strong>Bootstrap Icons</strong></td><td>Iconos vectoriales</td><td><code>&lt;i class="bi bi-…"&gt;</code></td></tr>
-    <tr><td><strong>Vite</strong></td><td>Servidor de desarrollo + bundler</td><td><code>vite.config.js</code></td></tr>
-    <tr><td><strong>Fetch API</strong></td><td>Llamadas HTTP</td><td><code>api/client.js</code></td></tr>
-    <tr><td><strong>JWT</strong></td><td>Token de autenticación</td><td>localStorage clave <code>arso_token</code></td></tr>
-    <tr><td><strong>OAuth2 (GitHub)</strong></td><td>Login con GitHub</td><td><code>pages/Login.jsx</code></td></tr>
+    <tr><td><strong>HTML</strong></td><td>No hay estructura. El navegador sólo ve texto plano.</td><td><code>index.html</code></td></tr>
+    <tr><td><strong>CSS</strong></td><td>Todo se vería como Word de los 90: sin colores ni layout.</td><td><code>*.css</code></td></tr>
+    <tr><td><strong>JavaScript (ES6+)</strong></td><td>La página sería estática: ni clicks, ni fetch, ni cambios sin recargar.</td><td><code>*.js</code>, <code>*.jsx</code></td></tr>
+    <tr><td><strong>React</strong></td><td>Tendrías que sincronizar a mano DOM y datos. Bug factory.</td><td><code>*.jsx</code></td></tr>
+    <tr><td><strong>JSX</strong></td><td>Tendrías que escribir <code>React.createElement(...)</code> a mano por cada nodo.</td><td><code>*.jsx</code></td></tr>
+    <tr><td><strong>React Router DOM</strong></td><td>No habría URLs distintas por página, sólo una.</td><td><code>App.jsx</code></td></tr>
+    <tr><td><strong>React Bootstrap</strong></td><td>Tendrías que estilar botones, tablas, modales desde cero.</td><td>imports de <code>react-bootstrap</code></td></tr>
+    <tr><td><strong>Bootstrap 5</strong></td><td>Sin grid responsive ni utilidades CSS estandarizadas.</td><td>clases <code>col-md-6</code>, <code>d-flex</code>…</td></tr>
+    <tr><td><strong>Vite</strong></td><td>El navegador no entendería JSX ni los <code>import</code> de npm.</td><td><code>vite.config.js</code></td></tr>
+    <tr><td><strong>Fetch API</strong></td><td>No podrías hablar con el backend desde el navegador.</td><td><code>api/client.js</code></td></tr>
+    <tr><td><strong>JWT</strong></td><td>El backend no sabría quién es el usuario en cada petición.</td><td><code>localStorage['arso_token']</code></td></tr>
+    <tr><td><strong>OAuth2 (GitHub)</strong></td><td>No podrías iniciar sesión con tu cuenta de GitHub.</td><td><code>pages/Login.jsx</code></td></tr>
   </tbody>
 </table>
 
-<h2>3. Mapa del proyecto</h2>
-<p>Abre el proyecto en VS Code. La carpeta importante es <code>daweb/daweb/</code> (la subcarpeta interna). Esto es lo que hay:</p>
-
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-diagram-3"></i> SOLID · DIP (Dependency Inversion)</span>
+  <p>El frontend depende de la <strong>abstracción</strong> <code>/api/...</code> (URL relativa), no del concreto <code>http://localhost:8090</code>. Por eso si mañana el backend se mueve a otro servidor, sólo tocas el proxy de Vite o la variable <code>VITE_API_BASE</code>, jamás los componentes.</p>
 <div class="code-wrap">
-  <span class="file-label">estructura</span>
-<pre><code class="language-bash">daweb/                         ← raíz del repo
-└── daweb/                     ← frontend (aquí trabajamos)
-    ├── public/                ← archivos estáticos
-    ├── src/
-    │   ├── api/               ← llamadas al backend
-    │   ├── components/        ← piezas reutilizables (Header, Card…)
-    │   ├── context/           ← estado global (auth)
-    │   ├── pages/             ← una por cada URL
-    │   ├── assets/            ← imágenes
-    │   ├── App.jsx            ← define las rutas
-    │   ├── main.jsx           ← arranca React
-    │   ├── index.css          ← estilos globales
-    │   └── theme.css          ← variables del tema
-    ├── index.html             ← HTML que recibe el navegador
-    ├── vite.config.js         ← configuración del servidor dev
-    └── package.json           ← dependencias y scripts
-</code></pre>
+  <span class="file-label">api/client.js — extracto</span>
+<pre><code class="language-js">// MAL (acopla a localhost): la URL del backend vive en el componente.
+fetch('http://localhost:8090/productos');
+
+// BIEN (depende de abstracción): URL relativa; Vite/nginx la resuelve.
+fetch('/api/productos');</code></pre>
+</div>
 </div>
 
-<h2>4. Cómo arrancar el proyecto</h2>
+<h2>5. Estructura del proyecto</h2>
+
+<p>Antes de arrancar nada, conviene tener en la cabeza dónde vive cada cosa. Si visualizas el árbol como capas concéntricas (de fuera hacia dentro: páginas → componentes → contexto → api → backend), sabrás siempre por dónde empezar a buscar.</p>
+
+<figure class="diagrama">
+  <figcaption>Carpetas del frontend</figcaption>
+  <pre class="mermaid">
+flowchart TB
+  Root["daweb/ (repo)"]
+  Front["daweb/daweb/ (frontend)"]
+  Root --> Front
+  Front --> Public["public/<br/>archivos estáticos"]
+  Front --> Src["src/"]
+  Front --> Index["index.html<br/>HTML que recibe el navegador"]
+  Front --> Vite["vite.config.js<br/>config + proxy"]
+  Front --> Pkg["package.json<br/>deps + scripts"]
+  Src --> Api["api/<br/>llamadas al backend"]
+  Src --> Comp["components/<br/>piezas reutilizables"]
+  Src --> Ctx["context/<br/>estado global (auth)"]
+  Src --> Pages["pages/<br/>una por cada URL"]
+  Src --> Assets["assets/<br/>imágenes"]
+  Src --> App["App.jsx<br/>define las rutas"]
+  Src --> Main["main.jsx<br/>arranca React"]
+  Src --> Css["index.css + theme.css"]
+  </pre>
+</figure>
+
+<div class="tip-regla">
+  <strong>Regla de oro de navegación:</strong> si una funcionalidad afecta a UNA ruta → vive en <code>pages/</code>. Si se reutiliza en varias → <code>components/</code>. Si la usan páginas distintas como "estado compartido" → <code>context/</code>. Si habla con el backend → <code>api/</code>.
+</div>
+
+<h2>6. Cómo arrancar el proyecto</h2>
 
 <h3>Requisitos</h3>
 <ul>
-  <li><strong>Node.js</strong> 18 o superior. Comprueba la versión con <code>node --version</code>.</li>
-  <li>Opcional: el backend ArSo corriendo en <code>http://localhost:8090</code> (si quieres que las llamadas devuelvan datos reales).</li>
+  <li><strong>Node.js</strong> 18 o superior. Comprueba la versión con <code>node --version</code>. Vite 8 lo requiere.</li>
+  <li>Opcional pero recomendado: el backend ArSo corriendo en <code>http://localhost:8090</code> para que las llamadas devuelvan datos reales.</li>
 </ul>
 
 <h3>Pasos</h3>
 <div class="flujo">
   <div class="flujo-paso"><span class="num">1</span> Abre una terminal en <code>daweb/daweb/</code>.</div>
   <div class="flujo-paso"><span class="num">2</span> La primera vez: <code>npm install</code> (descarga las librerías a <code>node_modules/</code>).</div>
-  <div class="flujo-paso"><span class="num">3</span> <code>npm run dev</code> (arranca el servidor de desarrollo en el puerto 5173).</div>
+  <div class="flujo-paso"><span class="num">3</span> <code>npm run dev</code> (arranca el servidor de desarrollo en el puerto 5173 con HMR).</div>
   <div class="flujo-paso"><span class="num">4</span> Abre <code>http://localhost:5173/</code> en el navegador.</div>
 </div>
 
-<h3>Otros comandos</h3>
+<h3>Comandos a conocer</h3>
 <table>
-  <tr><th>Comando</th><th>Para qué</th></tr>
-  <tr><td><code>npm install</code></td><td>Instala las dependencias declaradas en <code>package.json</code></td></tr>
-  <tr><td><code>npm run dev</code></td><td>Arranca servidor de desarrollo con recarga en caliente</td></tr>
-  <tr><td><code>npm run build</code></td><td>Genera la versión optimizada para producción en <code>dist/</code></td></tr>
-  <tr><td><code>npm run preview</code></td><td>Sirve <code>dist/</code> para comprobar cómo quedaría desplegado</td></tr>
+  <tr><th>Comando</th><th>Para qué</th><th>Cuándo</th></tr>
+  <tr><td><code>npm install</code></td><td>Instala las dependencias del <code>package.json</code>.</td><td>Una vez, o tras añadir/borrar libs.</td></tr>
+  <tr><td><code>npm ci</code></td><td>Instala EXACTAMENTE lo que dice <code>package-lock.json</code>.</td><td>En servidores de CI/CD.</td></tr>
+  <tr><td><code>npm run dev</code></td><td>Servidor con recarga en caliente.</td><td>Mientras desarrollas.</td></tr>
+  <tr><td><code>npm run build</code></td><td>Versión optimizada en <code>dist/</code>.</td><td>Para desplegar.</td></tr>
+  <tr><td><code>npm run preview</code></td><td>Sirve <code>dist/</code> en local.</td><td>Para comprobar el build antes de subir.</td></tr>
 </table>
 
-<h2>5. Conceptos de fondo que el entrevistador conoce</h2>
+<div class="tip-regla">
+  <strong>npm install vs npm ci:</strong> <code>install</code> puede actualizar versiones compatibles y reescribir el lock; <code>ci</code> es estricto e idempotente. Regla: tu máquina = <code>install</code>; servidor automatizado = <code>ci</code>.
+</div>
 
-<h3>npm y el ecosistema de dependencias</h3>
-<p><strong>npm</strong> (Node Package Manager) es el gestor de paquetes de JavaScript. Funciona como una tienda de libros gigante: <code>package.json</code> es tu lista de compra, <code>npm install</code> descarga los libros a <code>node_modules/</code>.</p>
+<h2>7. Conceptos de fondo que necesitas dominar</h2>
+
+<p>El entrevistador no te va a preguntar "¿qué es npm?" a secas: te preguntará algo de la web y, si la respuesta delata que no entiendes el ecosistema, escarbará. Estos cuatro conceptos son los más explotables.</p>
+
+<h3>7.1 npm: dependencies vs devDependencies</h3>
+
+<p><strong>npm</strong> (Node Package Manager) es el gestor de paquetes de JavaScript. <code>package.json</code> declara qué necesitas; <code>npm install</code> descarga los paquetes a <code>node_modules/</code>; <code>package-lock.json</code> congela las versiones exactas para que cualquier desarrollador reproduzca el mismo entorno.</p>
 
 <div class="dos-cols">
   <div class="tarjeta">
     <h4><code>dependencies</code></h4>
-    <p>Librerías que necesita la app en <strong>producción</strong>: React, React Router, Bootstrap.</p>
+    <p>Librerías que viven en <strong>producción</strong>: React, React Router, Bootstrap. El usuario final descarga estas.</p>
 <pre><code class="language-json">"dependencies": {
   "react": "^19.2.6",
   "bootstrap": "^5.3.8"
@@ -130,7 +214,7 @@ window.__SECC["intro"] = `<h1>Introducción y puesta en marcha</h1>
   </div>
   <div class="tarjeta">
     <h4><code>devDependencies</code></h4>
-    <p>Librerías sólo para <strong>desarrollo</strong> (herramientas de build): Vite, tipos de TypeScript.</p>
+    <p>Sólo para <strong>desarrollar/compilar</strong>: Vite, plugins, tipos. No acaban en el bundle final.</p>
 <pre><code class="language-json">"devDependencies": {
   "vite": "^8.0.12",
   "@vitejs/plugin-react": "^6.0.1"
@@ -138,74 +222,68 @@ window.__SECC["intro"] = `<h1>Introducción y puesta en marcha</h1>
   </div>
 </div>
 
+<div class="tip-regla">
+  <strong>Analogía:</strong> en un restaurante, los <em>dependencies</em> son los ingredientes que llegan al plato (los come el cliente). Los <em>devDependencies</em> son los cuchillos del chef: imprescindibles para cocinar, pero no acaban en el plato.
+</div>
+
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> ¿Por qué no subir node_modules/ a git?</div>
-  <p>Puede pesar entre 200 MB y 1 GB dependiendo del proyecto. Además, cada sistema operativo puede compilar algunas dependencias nativas de forma diferente. El archivo <code>package-lock.json</code> guarda las versiones exactas instaladas; con él, cualquier desarrollador puede reproducir el entorno exacto con <code>npm ci</code>. <code>npm install</code> puede actualizar versiones compatibles; <code>npm ci</code> instala exactamente lo del lock file (ideal para CI/CD).</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> ¿Por qué <code>node_modules/</code> nunca se sube a git?</div>
+  <p>Pesa de 200 MB a 1 GB. Además, dependencias nativas se compilan distinto por sistema operativo. El <code>package-lock.json</code> es suficiente para reproducir el entorno con <code>npm ci</code>.</p>
 </div>
 
-<h3>¿Por qué necesitas Node.js si esto corre en el navegador?</h3>
-<p>El navegador <strong>no puede</strong> leer archivos <code>.jsx</code>, ni resolver <code>import 'react'</code> (que apunta a <code>node_modules/</code>). Necesitas una cadena de transformación:</p>
+<h3>7.2 ¿Por qué necesitas Node.js si esto corre en el navegador?</h3>
 
-<div class="flujo">
-  <div class="flujo-paso"><span class="num">1</span> Tu código fuente: <code>src/App.jsx</code> con JSX y <code>import</code>.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">2</span> <strong>Vite</strong> (un programa Node.js) recibe la petición del navegador.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">3</span> Vite transforma el JSX a <code>React.createElement(…)</code> al vuelo.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">4</span> Vite resuelve los <code>import</code> de npm y devuelve JS estándar.</div>
-  <div class="flujo-flecha">▼</div>
-  <div class="flujo-paso"><span class="num">5</span> El navegador recibe JS que sí entiende y lo ejecuta.</div>
-</div>
+<p>El navegador <strong>no</strong> sabe leer <code>.jsx</code> ni resolver <code>import 'react'</code> (que apunta a <code>node_modules/</code>). Necesitas una cadena de transformación que pase tu código moderno a JS plano. Esa cadena la ejecuta Node.js a través de Vite:</p>
 
-<p>Node.js en este proyecto es como el andamio de una obra: imprescindible durante la construcción, pero no forma parte del edificio final.</p>
+<figure class="diagrama">
+  <figcaption>De tu código al navegador</figcaption>
+  <pre class="mermaid">
+flowchart LR
+  Src["src/App.jsx<br/>(JSX + import 'react')"] --> Vite["Vite<br/>(programa Node.js)"]
+  Vite -- "transforma JSX" --> JS["React.createElement(...)"]
+  Vite -- "resuelve imports npm" --> ESM["ES modules estándar"]
+  JS --> Browser["Navegador<br/>ejecuta JS plano"]
+  ESM --> Browser
+  </pre>
+</figure>
 
-<h3>Librería vs Framework: inversión de control</h3>
+<p>Node.js, en este proyecto, es como el andamio de una obra: imprescindible durante la construcción, no forma parte del edificio final.</p>
+
+<h3>7.3 Librería vs Framework: inversión de control</h3>
+
 <table>
-  <tr><th>Término</th><th>Quién llama a quién</th><th>Ejemplo</th></tr>
-  <tr><td><strong>Librería</strong></td><td>Tú llamas al código de la librería</td><td>React, Bootstrap, lodash</td></tr>
-  <tr><td><strong>Framework</strong></td><td>El framework llama a tu código</td><td>Angular, Spring, Django</td></tr>
+  <tr><th>Concepto</th><th>Quién llama a quién</th><th>Ejemplos</th></tr>
+  <tr><td><strong>Librería</strong></td><td>Tú llamas a su código.</td><td>React, Bootstrap, lodash.</td></tr>
+  <tr><td><strong>Framework</strong></td><td>El framework llama a tu código.</td><td>Angular, Spring, Django.</td></tr>
 </table>
-<p>React es una <strong>librería</strong> de UI: sólo gestiona renderizado. No opina sobre routing, estado global ni peticiones HTTP. Por eso DaWeb necesita otras librerías (React Router, Bootstrap) para esas funcionalidades.</p>
+<p>React es una <strong>librería</strong> de UI: sólo gestiona renderizado. No opina sobre routing, estado global ni peticiones HTTP. Por eso DaWeb suma React Router, Bootstrap y un cliente fetch propio: cada pieza independiente, elegida a propósito.</p>
 
-<h3>Entorno dev vs producción: diferencias reales</h3>
+<div class="tip-regla">
+  Si oyes "el framework de React" en una entrevista, corrige amablemente: React es una <strong>librería</strong>. Lo que sí podrías llamar framework es Next.js, que orquesta React.
+</div>
+
+<h3>7.4 Entorno dev vs producción: dónde nacen los bugs raros</h3>
+
 <table>
-  <tr><th>Característica</th><th>Development (<code>npm run dev</code>)</th><th>Production (<code>npm run build</code>)</th></tr>
-  <tr><td>Velocidad de arranque</td><td>Instantáneo (sirve archivos sin bundlear)</td><td>Requiere compilar (puede tardar 10-30 s)</td></tr>
-  <tr><td>Source maps</td><td>Sí (ves el código original en DevTools)</td><td>Opcionales (normalmente no)</td></tr>
-  <tr><td>Minificación</td><td>No</td><td>Sí (código ilegible, pesa menos)</td></tr>
-  <tr><td>StrictMode</td><td>Doble montaje de componentes</td><td>Sin doble montaje</td></tr>
-  <tr><td>HMR</td><td>Sí</td><td>No (archivo estático)</td></tr>
-  <tr><td>Proxy Vite</td><td>Sí (<code>/api</code> → <code>localhost:8090</code>)</td><td><strong>No existe</strong> (hay que configurar nginx/Apache)</td></tr>
+  <tr><th>Característica</th><th>Dev (<code>npm run dev</code>)</th><th>Prod (<code>npm run build</code>)</th></tr>
+  <tr><td>Arranque</td><td>Instantáneo (no bundlea).</td><td>Compila (10-30 s).</td></tr>
+  <tr><td>Source maps</td><td>Sí (ves el código original).</td><td>Opcionales.</td></tr>
+  <tr><td>Minificación</td><td>No.</td><td>Sí (ilegible, pesa menos).</td></tr>
+  <tr><td>StrictMode</td><td>Doble montaje de componentes.</td><td>Sin doble montaje.</td></tr>
+  <tr><td>HMR</td><td>Sí (recarga en caliente).</td><td>No.</td></tr>
+  <tr><td>Proxy Vite</td><td>Sí (<code>/api</code> → <code>:8090</code>).</td><td><strong>No existe</strong> (configurar nginx).</td></tr>
 </table>
 
 <div class="callout danger">
-  <div class="callout-titulo"><i class="bi bi-x-circle"></i> Gotcha: bugs que sólo aparecen en producción</div>
-  <p>El doble montaje de StrictMode hace que algunos <code>useEffect</code> mal escritos fallen en dev pero "funcionen" en prod, o al revés. Si algo funciona en dev pero no en prod (o viceversa), la diferencia de entorno es el primer sospechoso. Otro ejemplo: el proxy. En dev, <code>/api</code> llega al backend. En prod sin configuración, da 404.</p>
+  <div class="callout-titulo"><i class="bi bi-x-circle"></i> Gotcha: el doble montaje de StrictMode</div>
+  <p>En desarrollo, React monta → desmonta → vuelve a montar cada componente para forzarte a escribir efectos limpios. Si tu <code>useEffect</code> incrementa un contador sin protección, en dev verás <strong>2</strong> incrementos por visita; en prod, 1. El <code>useRef</code> protector que verás en <code>DetalleProducto.jsx</code> existe precisamente por eso.</p>
 </div>
 
-<h3>Preguntas trampa que hará el entrevistador</h3>
-
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué versión mínima de Node.js necesitas?"</div>
-  <p><strong>Respuesta</strong>: Node.js 18 o superior. Vite 8 lo requiere explícitamente. Puedes comprobarlo con <code>node --version</code>. Si tienes una versión antigua, Vite fallará al arrancar con un error de compatibilidad.</p>
-</div>
-
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué diferencia hay entre <code>npm install</code> y <code>npm ci</code>?"</div>
-  <p><strong>Respuesta</strong>: <code>npm install</code> puede actualizar versiones compatibles y modifica el <code>package-lock.json</code>. <code>npm ci</code> borra <code>node_modules/</code>, instala EXACTAMENTE lo que hay en el lock file y falla si hay discrepancias. <code>npm ci</code> es para entornos reproducibles (servidores de CI, despliegue).</p>
-</div>
-
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué partes de la web funcionan sin el backend?"</div>
-  <p><strong>Respuesta</strong>: Las páginas estáticas (Home en parte, Error 404) muestran su estructura. Todo lo que requiere datos (lista de productos, login, perfil) fallará con un error de red o mostrará estado de carga indefinido. El frontend es independiente del backend en estructura, pero dependiente en datos.</p>
-</div>
-
-<h2>6. Pequeño experimento mental</h2>
+<h2>8. Pequeño experimento mental</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta rápida</div>
-  <p class="quiz-pregunta">Cuando ejecutas <code>npm run dev</code> y abres <code>http://localhost:5173/productos</code>, ¿quién devuelve los productos?</p>
+  <p class="quiz-pregunta">Cuando ejecutas <code>npm run dev</code> y abres <code>http://localhost:5173/productos</code>, ¿quién devuelve la lista de productos?</p>
   <div class="quiz-opciones">
     <button class="quiz-opcion" data-correcta="0">El servidor Vite, leyendo un fichero local.</button>
     <button class="quiz-opcion" data-correcta="0">El navegador, generándolos al vuelo con React.</button>
@@ -215,81 +293,24 @@ window.__SECC["intro"] = `<h1>Introducción y puesta en marcha</h1>
   <p class="quiz-feedback" data-ok="Vite sólo sirve el frontend; los datos vienen siempre del backend." data-ko="Vite sirve el código del frontend, pero los datos los pide React al backend Java vía proxy."></p>
 </div>
 
-<h2>7. Arquitectura completa del sistema</h2>
+<h2>9. Preguntas trampa frecuentes</h2>
 
-<p>Visualizar dónde vive cada cosa es esencial para razonar sobre el flujo de los datos.</p>
-
-<div class="code-wrap">
-  <span class="file-label">arquitectura general (alto nivel)</span>
-<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
-│                              NAVEGADOR                                  │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Frontend DaWeb (React 19 + Vite + React Router + React Bootstrap)│  │
-│  │                                                                   │  │
-│  │   ┌──────────┐  ┌────────────┐  ┌─────────────┐  ┌────────────┐   │  │
-│  │   │  Pages   │  │ Components │  │   Context   │  │  api/*.js  │   │  │
-│  │   │ (rutas)  │←→│ (UI shared)│  │  (AuthCtx)  │  │  client.js │   │  │
-│  │   └────┬─────┘  └────────────┘  └──────┬──────┘  └─────┬──────┘   │  │
-│  │        │                               │               │          │  │
-│  │        └────────── useAuth() ──────────┘               │          │  │
-│  │                                                        │          │  │
-│  │                 localStorage ←── token JWT ────────────┘          │  │
-│  └────────────────────────────────────────────┬──────────────────────┘  │
-│                                               │ fetch('/api/...')       │
-└───────────────────────────────────────────────┼─────────────────────────┘
-                                                │
-                                ┌───────────────▼───────────────┐
-                                │  Vite Dev Server  (:5173)     │
-                                │  - sirve index.html + JS      │
-                                │  - proxy /api → :8090         │
-                                │  - HMR vía WebSocket          │
-                                └───────────────┬───────────────┘
-                                                │ HTTP (sin CORS)
-                                ┌───────────────▼───────────────┐
-                                │  Backend ArSo (Java :8090)    │
-                                │  - REST + Spring HATEOAS      │
-                                │  - JWT firmado (HS256)        │
-                                │  - OAuth2 con GitHub          │
-                                │  - lógica de negocio          │
-                                └───────────────┬───────────────┘
-                                                │ JDBC
-                                ┌───────────────▼───────────────┐
-                                │           MySQL               │
-                                │  usuarios / productos /       │
-                                │  compraventas / categorías    │
-                                └───────────────────────────────┘</code></pre>
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué versión mínima de Node.js necesitas?"</div>
+  <p><strong>Respuesta:</strong> Node 18+. Vite 8 lo requiere explícitamente. Compruebas con <code>node --version</code>. Si tienes una versión antigua, Vite falla al arrancar.</p>
 </div>
 
-<h3>Quién depende de quién (frontend)</h3>
-
-<div class="code-wrap">
-  <span class="file-label">dependencias internas del frontend</span>
-<pre><code class="language-text">main.jsx
-   │
-   ▼
-App.jsx ──────► AuthProvider ──────► BrowserRouter ──────► Layout
-                     │                                       │
-                     │ provee usuario, login, logout         │
-                     │                                       ├── Header  ── useAuth()
-                     ▼                                       ├── Routes  ── (Productos, Detalle, Perfil, Login...)
-            context/useAuth.js                               └── Footer
-                     │
-                     ▼
-            api/client.js (decodeJwt, getToken, request)
-                     │
-                     ├─► api/auth.js
-                     ├─► api/usuarios.js
-                     ├─► api/productos.js
-                     ├─► api/categorias.js
-                     └─► api/compraventas.js</code></pre>
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Diferencia entre <code>npm install</code> y <code>npm ci</code>?"</div>
+  <p><strong>Respuesta:</strong> <code>install</code> puede actualizar versiones compatibles y reescribe el lock. <code>ci</code> borra <code>node_modules/</code>, instala EXACTO lo del lock y falla si hay discrepancias. <code>ci</code> es para servidores de CI/CD donde quieres reproducibilidad.</p>
 </div>
 
-<div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Lectura del diagrama</div>
-  <p>Las flechas indican "depende de" o "llama a". <code>api/client.js</code> es el módulo más profundo: nadie depende de él para nada salvo las funciones de la carpeta <code>api/</code>. Si lo modificas, afecta a toda la app. Si modificas una página, sólo le afecta a ella.</p>
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué partes funcionan sin el backend?"</div>
+  <p><strong>Respuesta:</strong> Las páginas estáticas (Home, Error 404) muestran su estructura. Todo lo que pide datos (productos, login, perfil) falla con error de red. El frontend es independiente del backend en <em>estructura</em>, pero dependiente en <em>datos</em>.</p>
 </div>
 
-<h2>8. Ejercicios</h2>
+<h2>10. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
@@ -301,7 +322,7 @@ App.jsx ──────► AuthProvider ──────► BrowserRouter �
   <ol>
     <li>¿Cuántos ficheros hay en <code>src/pages/</code>?</li>
     <li>¿Cuántos en <code>src/api/</code>?</li>
-    <li>¿Cuál es la dependencia que más pesa según el orden de <code>package.json</code>?</li>
+    <li>¿Cuál es la dependencia principal según el orden de <code>package.json</code>?</li>
   </ol>
   <details>
     <summary>Ver respuestas</summary>
@@ -318,14 +339,14 @@ App.jsx ──────► AuthProvider ──────► BrowserRouter �
     <span class="nivel">★ Fácil</span>
   </div>
   <ol>
-    <li>Ejecuta <code>npm install</code> y luego <code>npm run dev</code>.</li>
+    <li>Ejecuta <code>npm install</code> y después <code>npm run dev</code>.</li>
     <li>Abre <code>http://localhost:5173/</code>.</li>
-    <li>Sin cerrar el servidor, abre <code>src/pages/Home.jsx</code> y cambia el texto del <code>&lt;h1&gt;</code> (línea ~20) por algo como <em>"Mi web personal"</em>. Guarda.</li>
-    <li>Observa el navegador: el cambio aparece sin recargar.</li>
+    <li>Sin parar el servidor, abre <code>src/pages/Home.jsx</code> y cambia el texto del <code>&lt;h1&gt;</code> (línea ~20). Guarda.</li>
+    <li>Mira el navegador: el cambio aparece sin recargar.</li>
   </ol>
   <details>
     <summary>¿Por qué ha funcionado sin recargar?</summary>
-    <p>Vite tiene <strong>Hot Module Replacement (HMR)</strong>: detecta el cambio en el fichero, recompila sólo lo afectado y se lo manda al navegador a través de un WebSocket. El estado de React se preserva.</p>
+    <p>Vite tiene <strong>Hot Module Replacement (HMR)</strong>: detecta el cambio, recompila sólo el módulo afectado y lo envía al navegador por WebSocket. El estado de React se preserva.</p>
   </details>
 </div>
 
@@ -336,14 +357,14 @@ App.jsx ──────► AuthProvider ──────► BrowserRouter �
     <span class="nivel">★★ Intermedio</span>
   </div>
   <ol>
-    <li>Con la web abierta, pulsa <span class="kbd">F12</span> para abrir las herramientas de desarrollo.</li>
+    <li>Con la web abierta, pulsa <span class="kbd">F12</span>.</li>
     <li>Ve a la pestaña <strong>Network / Red</strong>.</li>
     <li>Recarga (<span class="kbd">F5</span>) y navega a <code>/productos</code>.</li>
-    <li>Identifica las peticiones a URLs <code>/api/...</code>. Haz click en una: en <em>Request URL</em> verás <code>http://localhost:5173/api/productos</code>, pero en realidad el servidor que responde es el de 8090.</li>
+    <li>Identifica las peticiones a <code>/api/...</code>. La <em>Request URL</em> es <code>http://localhost:5173/api/productos</code>, pero quien responde es el puerto 8090 (lo verás en headers del backend).</li>
   </ol>
   <details>
     <summary>Solución y pista</summary>
-    <p>Mira el fichero <code>vite.config.js</code>: la sección <code>server.proxy</code> indica que cualquier petición a <code>/api</code> se reenvía a <code>http://localhost:8090</code> y se le quita el prefijo <code>/api</code> con <code>rewrite</code>.</p>
+    <p>Mira <code>vite.config.js</code>: la sección <code>server.proxy</code> redirige <code>/api</code> a <code>http://localhost:8090</code> y quita el prefijo con <code>rewrite</code>.</p>
   </details>
 </div>
 
@@ -357,16 +378,15 @@ App.jsx ──────► AuthProvider ──────► BrowserRouter �
   <details>
     <summary>Lo que debería pasar</summary>
     <ul>
-      <li>Páginas estáticas como Home (<code>/</code>) y Error 404: funcionan, no piden nada.</li>
-      <li><code>/productos</code>: aparece la página pero con error o lista vacía (la petición falla).</li>
-      <li>Login: el formulario aparece pero al intentar entrar devuelve error de red.</li>
+      <li>Páginas estáticas (Home, Error 404): funcionan, no piden nada.</li>
+      <li><code>/productos</code>: la página se monta pero queda en estado de error o lista vacía.</li>
+      <li>Login: el formulario aparece, pero al enviar devuelve error de red.</li>
     </ul>
-    <p>El frontend es independiente del backend en cuanto a interfaz; sólo necesita el backend para datos.</p>
   </details>
 </div>
 
 <div class="callout tip">
   <div class="callout-titulo"><i class="bi bi-lightbulb"></i> Truco para la entrevista</div>
-  <p>Si te preguntan "¿qué pasa cuando un usuario abre la web?", responde con los pasos del flujo: navegador → Vite sirve <code>index.html</code> → carga <code>main.jsx</code> → React monta <code>App</code> → React Router lee la URL → pinta la página correspondiente → la página llama a la API → el proxy redirige al backend.</p>
+  <p>Si te preguntan "¿qué pasa cuando un usuario abre la web?", responde con los pasos del primer diagrama de esta sección: navegador → Vite sirve <code>index.html</code> → carga <code>main.jsx</code> → React monta <code>App</code> → Router lee la URL → pinta la página → la página llama a la API → el proxy redirige al backend → el backend consulta MySQL.</p>
 </div>
 `;

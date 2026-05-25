@@ -1,33 +1,37 @@
 <h1>JavaScript moderno (ES6+)</h1>
-<p class="subtitulo">Las características del lenguaje que verás en cada fichero del proyecto.</p>
+<p class="subtitulo">Las piezas del lenguaje que sostienen todo el código de DaWeb, en el orden en que conviene aprenderlas.</p>
 
-<p class="lead">React y todo el código de DaWeb usa la sintaxis moderna de JavaScript (la que llaman ES6+, ES2015 en adelante). En esta sección verás <strong>todas</strong> las construcciones que aparecen en el proyecto, con ejemplos extraídos del código real para que en la entrevista las reconozcas al vuelo.</p>
+<p class="lead">Casi cualquier línea del proyecto usa una decena de "trucos" introducidos a partir de 2015 (ES6+): destructuring, arrow functions, spread, async/await… Si no los dominas, no entenderás luego ni React ni el cliente HTTP. En esta sección las recorremos en el orden en que se construyen unas sobre otras, con el ejemplo del proyecto pegado a cada concepto.</p>
 
-<h2>1. Variables: <code>const</code> y <code>let</code></h2>
-<p>Hay tres formas de declarar variables: <code>var</code> (antigua, no usar), <code>let</code> (variable normal) y <code>const</code> (variable que no se reasigna).</p>
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> El plan</div>
+  <p>Variables → arrow functions → template literals → destructuring → spread/rest → módulos → promesas/async-await → optional chaining → array methods → JSON. Cierre con teoría profunda: <em>event loop, closures, gotchas</em>. Cada bloque enseña un trozo de sintaxis que el siguiente reusará.</p>
+</div>
+
+<h2>1. Variables: <code>const</code> y <code>let</code> (olvida <code>var</code>)</h2>
+
+<p>Tres formas históricas: <code>var</code> (función-scoped, obsoleto), <code>let</code> (block-scoped, reasignable) y <code>const</code> (block-scoped, no reasignable). En código moderno: <strong>siempre <code>const</code></strong>; sólo <code>let</code> cuando vas a reasignar.</p>
 
 <div class="dos-cols">
   <div class="tarjeta">
     <h4><code>const</code></h4>
-    <p>La referencia no cambia. Por defecto siempre usa <code>const</code>.</p>
 <pre><code class="language-js">const API_BASE = '/api';
 const TAMANYO_PAGINA = 9;</code></pre>
   </div>
   <div class="tarjeta">
     <h4><code>let</code></h4>
-    <p>Cuando sí necesitas reasignar.</p>
 <pre><code class="language-js">let url = `${API_BASE}${path}`;
-if (query) url += `?${qs}`;</code></pre>
+if (qs) url += `?${qs}`;</code></pre>
   </div>
 </div>
 
-<div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Cuidado</div>
-  <p><code>const</code> impide reasignar la <em>referencia</em>, pero no impide modificar el contenido de un objeto o array. <code>const a = []; a.push(1);</code> es válido.</p>
+<div class="tip-regla">
+  <strong><code>const</code> no es "inmutable", es "no reasignable".</strong> Puedes mutar el objeto/array al que apunta: <code>const a = []; a.push(1);</code> es válido. Lo prohibido es <code>const a = []; a = [1];</code>.
 </div>
 
 <h2>2. Arrow functions <code>=&gt;</code></h2>
-<p>Sintaxis corta para funciones. Aparece en todo el proyecto.</p>
+
+<p>Sintaxis corta para funciones. Aparece en todo el proyecto y es la base de los hooks (que reciben callbacks).</p>
 
 <div class="tabs">
   <div class="tabs-cabecera">
@@ -45,7 +49,7 @@ if (query) url += `?${qs}`;</code></pre>
 <pre><code class="language-js">// Igual de potente, más corta
 const suma = (a, b) =&gt; a + b;
 
-// Con cuerpo en bloque
+// Con cuerpo en bloque (vuelve el return explícito)
 const suma2 = (a, b) =&gt; {
   const r = a + b;
   return r;
@@ -61,31 +65,33 @@ export const obtenerUsuario = (id) =&gt; request(`/usuarios/${id}`);</code></pre
   </div>
 </div>
 
-<h3>Diferencia clave: el <code>this</code></h3>
-<p>Las arrow functions <strong>no tienen su propio <code>this</code></strong>: heredan el del entorno. Por eso son más seguras en callbacks. En React funcional apenas se usa <code>this</code>, así que esto rara vez te morderá.</p>
+<p><strong>Diferencia clave</strong>: las arrow no tienen su propio <code>this</code>; heredan el del entorno. Por eso son más seguras como callbacks. En React funcional casi no se usa <code>this</code>, así que rara vez te morderá.</p>
+
+<div class="tip-regla">
+  Si la función es de una sola expresión y devuelve algo: usa arrow sin llaves y sin <code>return</code>. Si necesita varias instrucciones: arrow con llaves y <code>return</code> explícito.
+</div>
 
 <h2>3. Template literals (backticks)</h2>
-<p>Strings con interpolación usando <code>`</code> y <code>${}</code>.</p>
+
+<p>Strings con interpolación usando <code>`</code> y <code>${ ... }</code>. Adiós concatenaciones feas.</p>
 
 <div class="code-wrap">
   <span class="file-label">src/api/client.js</span>
 <pre><code class="language-js">let url = `${API_BASE}${path}`;
 if (qs) url += `?${qs}`;
-const error = new Error(
-  `Error ${respuesta.status} en ${method} ${path}`
-);</code></pre>
+const error = new Error(`Error ${respuesta.status} en ${method} ${path}`);</code></pre>
 </div>
 
-<p>Equivale a:</p>
+<p>Equivalente sin template:</p>
 <div class="code-wrap">
-  <span class="file-label">equivalente sin template</span>
 <pre><code class="language-js">var url = API_BASE + path;
 if (qs) url += '?' + qs;
 var error = new Error('Error ' + respuesta.status + ' en ' + method + ' ' + path);</code></pre>
 </div>
 
 <h2>4. Destructuring</h2>
-<p>Sacar propiedades de un objeto en variables con una sintaxis corta. Está en TODAS partes.</p>
+
+<p>Sacar propiedades de un objeto o un array a variables, en una línea. Aparece en TODOS los componentes y en casi toda la API.</p>
 
 <div class="tabs">
   <div class="tabs-cabecera">
@@ -98,7 +104,6 @@ var error = new Error('Error ' + respuesta.status + ' en ' + method + ' ' + path
     <div class="tabs-panel activa">
 <pre><code class="language-js">const persona = { nombre: 'Ana', edad: 30 };
 const { nombre, edad } = persona;
-console.log(nombre); // 'Ana'
 
 // Renombrando
 const { nombre: n } = persona;
@@ -109,10 +114,13 @@ const { ciudad = 'Murcia' } = persona;</code></pre>
     <div class="tabs-panel">
 <pre><code class="language-js">const colores = ['rojo', 'verde', 'azul'];
 const [primero, , tercero] = colores;
-console.log(primero); // 'rojo'</code></pre>
+// primero = 'rojo', tercero = 'azul'
+
+// Idéntico al patrón [valor, setter] = useState(...)
+const [contador, setContador] = useState(0);</code></pre>
     </div>
     <div class="tabs-panel">
-<pre><code class="language-js">// Función que recibe un objeto con opciones
+<pre><code class="language-js">// Recibe un objeto con opciones (named arguments)
 function pedir({ method = 'GET', body } = {}) {
   console.log(method, body);
 }
@@ -125,69 +133,91 @@ export const request = async (
   { method = 'GET', body, headers = {}, query, returnLocation = false } = {}
 ) =&gt; { ... };
 
-// src/context/AuthContext.jsx
-const { id: idCreado } = await productosApi.crearProducto({ ... });
-
 // src/components/RutaProtegida.jsx
 function RutaProtegida({ children, soloAdmin = false }) {
   const { usuario, esAdmin } = useAuth();
-  ...
 }</code></pre>
     </div>
   </div>
 </div>
 
-<h2>5. Spread <code>...</code> y rest <code>...</code></h2>
-<p>Los tres puntos sirven para dos cosas opuestas dependiendo del contexto.</p>
+<div class="tip-regla">
+  <strong><code>{ }</code> a la izquierda de <code>=</code> ⇒ destructuring de objeto</strong>. <code>[ ]</code> a la izquierda ⇒ destructuring de array. Sirve también en argumentos de función: si el llamador pasa <code>{a:1, b:2}</code>, tú lo recibes ya descompuesto.
+</div>
 
-<h3>Spread: <em>expandir</em></h3>
+<h2>5. Spread <code>...</code> y rest <code>...</code></h2>
+
+<p>Los tres puntos hacen dos cosas opuestas según dónde estén: <strong>spread</strong> expande, <strong>rest</strong> agrupa.</p>
+
+<h3>Spread: expandir</h3>
+
 <div class="code-wrap">
-  <span class="file-label">ejemplos</span>
+  <span class="file-label">patrones básicos</span>
 <pre><code class="language-js">// Combinar arrays
 const a = [1, 2];
 const b = [...a, 3, 4]; // [1, 2, 3, 4]
 
-// Copiar y modificar objetos (¡muy importante en React!)
+// Copiar y modificar objetos (clave en React: nunca mutar)
 const persona = { nombre: 'Ana', edad: 30 };
-const mayor = { ...persona, edad: 31 };
-// { nombre: 'Ana', edad: 31 }
+const mayor = { ...persona, edad: 31 }; // { nombre: 'Ana', edad: 31 }
 
-// Mezclar opciones por defecto con overrides
+// Mezclar defaults con overrides
 const opciones = { ...defaults, ...sobreescrituras };</code></pre>
 </div>
 
 <div class="code-wrap">
-  <span class="file-label">src/api/client.js — uso real</span>
+  <span class="file-label">src/api/client.js — caso real</span>
 <pre><code class="language-js">const opciones = {
   method,
   headers: {
     Accept: 'application/json',
-    ...(body ? { 'Content-Type': 'application/json' } : {}),
+    ...(body ? { 'Content-Type': 'application/json' } : {}),  // spread condicional
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...headers,
   },
 };</code></pre>
 </div>
 
-<h3>Rest: <em>agrupar</em></h3>
+<h3>Rest: agrupar</h3>
+
 <div class="code-wrap">
-  <span class="file-label">ejemplos</span>
 <pre><code class="language-js">function suma(...nums) {
   return nums.reduce((a, b) =&gt; a + b, 0);
 }
 suma(1, 2, 3, 4); // 10
 
+// En destructuring: separa la primera prop y agrupa el resto
 const { id, ...resto } = { id: 1, nombre: 'Ana', edad: 30 };
 // resto = { nombre: 'Ana', edad: 30 }</code></pre>
 </div>
 
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-arrow-repeat"></i> CRUD inmutable sobre arrays/objetos</span>
+  <p>En React, modificar estado SIEMPRE crea valores nuevos. Spread es la herramienta:</p>
+<div class="code-wrap">
+<pre><code class="language-js">// Create: añade un producto a la lista del estado
+setProductos([...productos, nuevo]);
+
+// Read: simplemente leer (no muta, no necesita spread)
+const item = productos.find(p =&gt; p.id === id);
+
+// Update: cambia uno por su id
+setProductos(productos.map(p =&gt; p.id === id ? { ...p, ...cambios } : p));
+
+// Delete: filtra fuera el que no quieres
+setProductos(productos.filter(p =&gt; p.id !== id));</code></pre>
+</div>
+  <p>Recuerda este patrón: lo verás veinte veces en el proyecto.</p>
+</div>
+
 <h2>6. Módulos: <code>import</code> / <code>export</code></h2>
-<p>Cada fichero <code>.js</code>/<code>.jsx</code> es un <strong>módulo independiente</strong>. Para usar algo de otro fichero hay que <em>exportarlo</em> allí e <em>importarlo</em> aquí.</p>
+
+<p>Cada <code>.js</code>/<code>.jsx</code> es un <strong>módulo independiente</strong>. Para usar algo de otro fichero hay que <em>exportarlo</em> allí e <em>importarlo</em> aquí. Sin esto, el código sería un solo fichero gigante.</p>
 
 <div class="dos-cols">
   <div class="tarjeta">
     <h4>Export <em>named</em></h4>
-    <p>Cualquier número de exports por nombre.</p>
+    <p>Varios por fichero. Importas por nombre exacto.</p>
 <pre><code class="language-js">// math.js
 export const PI = 3.14;
 export function suma(a, b) { return a + b; }
@@ -197,37 +227,52 @@ import { PI, suma } from './math';</code></pre>
   </div>
   <div class="tarjeta">
     <h4>Export <em>default</em></h4>
-    <p>Sólo uno por fichero. Lo importas con cualquier nombre.</p>
+    <p>Uno solo por fichero. Lo importas con el nombre que quieras.</p>
 <pre><code class="language-js">// Saludo.jsx
 export default function Saludo() { return &lt;p&gt;Hola&lt;/p&gt;; }
 
 // App.jsx
-import Saludo from './Saludo';   // sin llaves</code></pre>
+import Saludo from './Saludo'; // sin llaves</code></pre>
   </div>
 </div>
 
-<h3>Variantes que verás</h3>
 <div class="code-wrap">
-  <span class="file-label">ejemplos del proyecto</span>
-<pre><code class="language-js">// src/pages/Productos.jsx
-import { useEffect, useState } from 'react';           // named de paquete npm
+  <span class="file-label">src/pages/Productos.jsx — variantes que verás</span>
+<pre><code class="language-js">import { useEffect, useState } from 'react';            // named de paquete npm
 import { useSearchParams, Link } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
-import * as productosApi from '../api/productos';      // ⭐ importa TODO como namespace
-import * as categoriasApi from '../api/categorias';
-import ProductoCard from '../components/ProductoCard'; // default sin llaves
-import './Productos.css';                              // efecto secundario (no variable)</code></pre>
+import * as productosApi from '../api/productos';      // ⭐ namespace import
+import ProductoCard from '../components/ProductoCard'; // default
+import './Productos.css';                              // side-effect (no variable)</code></pre>
 </div>
 
-<div class="callout info">
-  <div class="callout-titulo"><i class="bi bi-info-circle"></i> El truco del <code>import * as</code></div>
-  <p>Cuando un módulo exporta muchas funciones (como <code>api/productos.js</code>), se importa todo bajo un alias para no llenar el fichero de imports. Luego se usa <code>productosApi.listarProductos(...)</code>, <code>productosApi.crearProducto(...)</code>, etc.</p>
+<div class="tip-regla">
+  <strong><code>import * as foo</code></strong> agrupa todos los exports named bajo un alias. Útil cuando un módulo tiene 5+ funciones (<code>api/productos.js</code>). Evita largas listas de imports.
 </div>
 
 <h2>7. Promesas y <code>async</code> / <code>await</code></h2>
-<p>Las operaciones que tardan (peticiones HTTP, leer archivos…) son <strong>asíncronas</strong>: no devuelven el resultado al instante, sino una <strong>Promesa</strong> que se "cumplirá" más tarde.</p>
 
-<h3>Con <code>.then()</code> y <code>.catch()</code></h3>
+<p>Las operaciones que tardan (HTTP, I/O) son <strong>asíncronas</strong>: no devuelven el resultado al instante, sino una <strong>Promise</strong> que se "cumplirá" o "fallará" luego. Una Promise es una máquina de estados:</p>
+
+<figure class="diagrama">
+  <figcaption>Estados de una Promise</figcaption>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Pending
+  Pending --> Fulfilled : resolve(valor)
+  Pending --> Rejected : reject(error)
+  Fulfilled --> [*]
+  Rejected --> [*]
+  note right of Fulfilled
+    irreversible:
+    una vez Fulfilled o Rejected,
+    el estado NO cambia
+  end note
+  </pre>
+</figure>
+
+<h3>Estilo encadenado (<code>.then</code>/<code>.catch</code>/<code>.finally</code>)</h3>
+
 <div class="code-wrap">
   <span class="file-label">src/pages/Productos.jsx — fragmento</span>
 <pre><code class="language-js">productosApi
@@ -240,7 +285,8 @@ import './Productos.css';                              // efecto secundario (no 
   .finally(() =&gt; setCargando(false));</code></pre>
 </div>
 
-<h3>Con <code>async</code>/<code>await</code> (más legible)</h3>
+<h3>Estilo <code>async</code>/<code>await</code> (más legible)</h3>
+
 <div class="code-wrap">
   <span class="file-label">src/pages/DetalleProducto.jsx — fragmento</span>
 <pre><code class="language-js">const comprar = async () =&gt; {
@@ -262,49 +308,61 @@ import './Productos.css';                              // efecto secundario (no 
 };</code></pre>
 </div>
 
-<h3>Reglas</h3>
+<h3>Reglas de oro</h3>
 <ol>
-  <li>Una función marcada con <code>async</code> SIEMPRE devuelve una Promesa.</li>
-  <li><code>await</code> sólo se puede usar dentro de una función <code>async</code>.</li>
-  <li><code>await pX</code> "pausa" la función hasta que la promesa se resuelva.</li>
-  <li>Errores: envuelve en <code>try / catch</code> o encadena <code>.catch(...)</code>.</li>
+  <li>Una función <code>async</code> SIEMPRE devuelve una Promise.</li>
+  <li><code>await</code> sólo dentro de <code>async</code> (o top-level de módulo).</li>
+  <li><code>await pX</code> "pausa" la función hasta que la Promise resuelva.</li>
+  <li>Errores: <code>try/catch</code> o <code>.catch()</code>.</li>
 </ol>
+
+<div class="tip-regla">
+  <strong>Si el callback de <code>useEffect</code> es async, falla</strong>. <code>useEffect</code> espera o <code>undefined</code> o una función de limpieza; una Promise no le sirve. Solución: declara una función async DENTRO y llámala.
+</div>
 
 <h2>8. Optional chaining <code>?.</code> y nullish coalescing <code>??</code></h2>
 
 <h3><code>?.</code> — "si no es null/undefined, accede"</h3>
+
 <div class="code-wrap">
   <span class="file-label">src/components/ProductoCard.jsx</span>
 <pre><code class="language-js">{producto.lugarDeRecogida?.recogida &amp;&amp; ` · ${producto.lugarDeRecogida.recogida}`}
-// si lugarDeRecogida es undefined o null, NO da error. Devuelve undefined.</code></pre>
+// Si lugarDeRecogida es undefined o null, NO da error. Devuelve undefined.</code></pre>
 </div>
 
 <h3><code>??</code> — "si es null/undefined, usa el valor por defecto"</h3>
+
 <div class="code-wrap">
   <span class="file-label">src/api/util.js</span>
 <pre><code class="language-js">export const totalPaginas = (res) =&gt; res?.page?.totalPages ?? 1;</code></pre>
 </div>
-<p>Distinto de <code>||</code>: <code>0 || 5</code> da 5, pero <code>0 ?? 5</code> da 0. <code>??</code> sólo "cae" con null/undefined.</p>
+
+<div class="tip-regla">
+  <strong><code>??</code> sólo trata <code>null</code> y <code>undefined</code> como vacíos. <code>||</code> también <code>0</code>, <code>''</code>, <code>false</code>.</strong> Si tienes precios donde <code>0</code> es legítimo, usa <code>??</code> siempre. <code>0 || 5 = 5</code> ; <code>0 ?? 5 = 0</code>.
+</div>
 
 <h2>9. Métodos de array que verás constantemente</h2>
+
 <table>
   <tr><th>Método</th><th>Qué hace</th><th>Dónde aparece en DaWeb</th></tr>
-  <tr><td><code>.map(fn)</code></td><td>Transforma cada elemento devolviendo uno nuevo.</td><td>Listas de productos, usuarios, opciones.</td></tr>
-  <tr><td><code>.filter(fn)</code></td><td>Devuelve los que cumplen la condición.</td><td><code>PerfilProductos</code>: filtrar productos por vendedor.</td></tr>
+  <tr><td><code>.map(fn)</code></td><td>Transforma cada elemento. Devuelve nuevo array.</td><td>Listas de productos, opciones de &lt;select&gt;.</td></tr>
+  <tr><td><code>.filter(fn)</code></td><td>Conserva los que cumplen.</td><td><code>PerfilProductos</code>: por vendedor.</td></tr>
   <tr><td><code>.find(fn)</code></td><td>Devuelve el PRIMERO que cumple.</td><td>Búsquedas puntuales.</td></tr>
-  <tr><td><code>.slice(a, b)</code></td><td>Corta un trozo.</td><td>Paginación local.</td></tr>
-  <tr><td><code>.forEach(fn)</code></td><td>Itera (no devuelve).</td><td>Construir query strings.</td></tr>
+  <tr><td><code>.slice(a, b)</code></td><td>Corta un trozo (no muta).</td><td>Paginación cliente.</td></tr>
+  <tr><td><code>.reduce(fn, init)</code></td><td>Reduce a un único valor.</td><td>Sumas, agrupaciones.</td></tr>
+  <tr><td><code>.forEach(fn)</code></td><td>Itera (no devuelve nada).</td><td>Construir query strings.</td></tr>
 </table>
 
 <div class="code-wrap">
-  <span class="file-label">ejemplo: .map en JSX</span>
+  <span class="file-label">.map en JSX</span>
 <pre><code class="language-jsx">{productos.map((p) =&gt; (
   &lt;ProductoCard key={p.id} producto={p} /&gt;
 ))}</code></pre>
 </div>
 
 <h2>10. <code>JSON.parse</code> / <code>JSON.stringify</code></h2>
-<p>Convertir entre objeto JavaScript y string JSON. Lo usa el cliente HTTP del proyecto.</p>
+
+<p>Convertir entre objeto JS y string JSON. Lo usa el cliente HTTP para serializar bodies y deserializar respuestas.</p>
 
 <div class="code-wrap">
   <span class="file-label">src/api/client.js — fragmento</span>
@@ -314,7 +372,7 @@ const datos = texto ? safeJson(texto) : null;
 // safeJson hace JSON.parse rodeado de try/catch</code></pre>
 </div>
 
-<h2>11. Playground: prueba tú</h2>
+<h2>11. Playgrounds (compruébalo tú)</h2>
 
 <div class="try-it">
   <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Destructuring + spread</div>
@@ -367,8 +425,8 @@ flujo().then(r =&gt; console.log('Resultado:', r));</textarea>
 
 console.log('Con ?. :', producto.lugarDeRecogida?.descripcion);
 console.log('Con ?? :', producto.envio ?? 'no especificado');
-console.log('Cuidado con || :', producto.precio || 'gratis');   // 100
-console.log('Y con ?? :', producto.precio ?? 'gratis');        // 100
+console.log('Cuidado con || :', producto.precio || 'gratis');
+console.log('Y con ?? :', producto.precio ?? 'gratis');
 console.log('Diferencia con 0:', 0 || 'cero', '/', 0 ?? 'cero');</textarea>
   <div class="try-it-acciones">
     <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
@@ -377,46 +435,41 @@ console.log('Diferencia con 0:', 0 || 'cero', '/', 0 ?? 'cero');</textarea>
   <div class="try-it-salida"></div>
 </div>
 
-<h2>12. Teoría profunda: lo que el entrevistador sabe</h2>
+<h2>12. Teoría profunda que el entrevistador explota</h2>
 
-<h3>El event loop: por qué JavaScript puede ser "asíncrono" siendo single-threaded</h3>
-<p>JavaScript tiene <strong>una sola pila de llamadas</strong> (call stack). En un momento dado, sólo ejecuta una cosa. Entonces, ¿cómo no bloquea la pantalla mientras espera una respuesta HTTP? El <strong>event loop</strong>.</p>
+<h3>12.1 El event loop: por qué JS es asíncrono siendo single-threaded</h3>
 
-<div class="code-wrap">
-  <span class="file-label">Actores del event loop</span>
-<pre><code class="language-text">┌─────────────────────────────┐
-│         Call Stack          │  ← Código síncrono (funciones en ejecución)
-└──────────────┬──────────────┘
-               │ vacía
-               ▼
-┌─────────────────────────────┐
-│      Microtask Queue        │  ← Callbacks de Promises resueltas (await)
-│  (prioridad ALTA — vaciar   │
-│   toda la cola antes de     │
-│   pasar a macrotasks)        │
-└──────────────┬──────────────┘
-               │ vacía
-               ▼
-┌─────────────────────────────┐
-│      Macrotask Queue        │  ← setTimeout, setInterval, eventos del DOM
-│  (una tarea por ciclo)      │
-└─────────────────────────────┘</code></pre>
-</div>
+<p>JavaScript tiene UNA sola pila de llamadas. En un instante sólo ejecuta una cosa. ¿Cómo no bloquea la pantalla mientras espera un fetch? El <strong>event loop</strong>:</p>
+
+<figure class="diagrama">
+  <figcaption>Ciclo del event loop</figcaption>
+  <pre class="mermaid">
+flowchart LR
+  CS["Call Stack<br/>(síncrono)"] --> EL{Event Loop}
+  EL -- "1: vacía micro" --> Micro["Microtask Queue<br/>(Promises, MutationObserver)"]
+  Micro --> EL
+  EL -- "2: una macro" --> Macro["Macrotask Queue<br/>(setTimeout, eventos DOM)"]
+  Macro --> EL
+  EL -- "3: render" --> Pintar["Render frame"]
+  Pintar --> EL
+  </pre>
+</figure>
 
 <p>Cuando escribes <code>await fetch('/api/productos')</code>:</p>
 <ol>
-  <li>La función se "pausa" y la petición se delega al motor de red (externo al event loop).</li>
-  <li>El event loop puede atender otras tareas (clicks, timers, otros renders).</li>
+  <li>La función se "pausa"; la petición la atiende el motor de red (fuera del event loop).</li>
+  <li>El event loop sigue procesando clicks, timers, otros componentes.</li>
   <li>Cuando llega la respuesta, el motor de red encola el callback en la <strong>microtask queue</strong>.</li>
-  <li>El event loop retoma la función desde donde la dejó.</li>
+  <li>El event loop reanuda tu función desde donde la dejó.</li>
 </ol>
 
-<p>Por eso <code>await</code> no bloquea la UI: cede el control entre petición y respuesta. Si pusierais una operación de 5 segundos <em>síncrona</em> (un bucle pesado), la UI se congelaría.</p>
+<div class="tip-regla">
+  <strong>Las microtasks (Promises) tienen prioridad sobre las macrotasks (setTimeout).</strong> Por eso un <code>Promise.resolve().then(...)</code> se ejecuta ANTES que un <code>setTimeout(..., 0)</code>.
+</div>
 
 <div class="try-it">
-  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Demostración del event loop</div>
-  <textarea spellcheck="false">// Observa el orden de ejecución
-console.log('1 — Síncrono');
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Demuestra el orden</div>
+  <textarea spellcheck="false">console.log('1 — Síncrono');
 
 setTimeout(() => console.log('4 — Macrotask (setTimeout 0ms)'), 0);
 
@@ -424,8 +477,7 @@ Promise.resolve().then(() => console.log('3 — Microtask (Promise)'));
 
 console.log('2 — Síncrono');
 
-// Resultado esperado: 1, 2, 3, 4
-// Aunque setTimeout sea "0ms", la microtask (Promise) tiene prioridad</textarea>
+// Esperado: 1, 2, 3, 4</textarea>
   <div class="try-it-acciones">
     <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
     <button class="btn-limpiar secundario">Reiniciar</button>
@@ -433,124 +485,122 @@ console.log('2 — Síncrono');
   <div class="try-it-salida"></div>
 </div>
 
-<h3>Promesas internamente: máquina de estados</h3>
-<p>Una <code>Promise</code> es un objeto con un estado interno que sólo puede hacer una transición:</p>
+<h3>12.2 Closures: la base invisible de los hooks</h3>
+
+<p>Un <strong>closure</strong> es una función que "recuerda" el scope en que fue creada, incluso cuando ese scope ya no está activo en la call stack.</p>
 
 <div class="code-wrap">
-<pre><code class="language-text">PENDING ──→ FULFILLED (resuelta con valor)
-        └──→ REJECTED  (rechazada con error)
-
-Una vez en FULFILLED o REJECTED, el estado NO puede cambiar.</code></pre>
-</div>
-
-<p>Por qué encadenar <code>.then().then()</code> funciona: cada <code>then</code> devuelve una <em>nueva</em> Promise. Si la función del <code>then</code> devuelve un valor, la nueva Promise se resuelve con ese valor. Si devuelve otra Promise, espera a que ésta resuelva:</p>
-
-<div class="code-wrap">
-<pre><code class="language-js">// Cadena de .then (equivale a varios await seguidos)
-productosApi.obtenerProducto(id)              // Promise<Producto>
-  .then(p => { setProducto(p); return p; })  // Promise<Producto>
-  .then(p => p.vendedor?.id)                 // Promise<string|undefined>
-  .then(idVendedor => console.log(idVendedor))
-  .catch(err => setError(err.message))        // captura cualquier fallo en la cadena
-  .finally(() => setCargando(false));         // siempre, sea éxito o fallo</code></pre>
-</div>
-
-<h3>Closures: la base invisible de los hooks</h3>
-<p>Un <strong>closure</strong> es una función que "recuerda" el scope (entorno de variables) en que fue creada, incluso cuando ese scope ya no está activo en la call stack.</p>
-
-<div class="code-wrap">
-  <span class="file-label">Closure clásico explicado</span>
+  <span class="file-label">Closure clásico</span>
 <pre><code class="language-js">function crearContador() {
-  let cuenta = 0;          // Variable LOCAL a crearContador
+  let cuenta = 0;
   return function sumar() {
-    cuenta++;              // sumar "cierra sobre" cuenta — la recuerda
+    cuenta++;
     return cuenta;
   };
 }
-const contador = crearContador();  // crearContador ya terminó...
-console.log(contador()); // 1     // ...pero cuenta sigue viva en el closure
+const contador = crearContador();
+console.log(contador()); // 1
 console.log(contador()); // 2
-console.log(contador()); // 3</code></pre>
+console.log(contador()); // 3   ← cuenta sigue viva gracias al closure</code></pre>
 </div>
 
-<p>En el proyecto, cuando <code>loginConGithub</code> crea el <code>setInterval</code>, la función del intervalo captura (cierra sobre) <code>intervaloRef</code>, <code>aceptarToken</code> y <code>navegar</code>. Cuando el intervalo se dispara 400ms después, la función <code>loginConGithub</code> ya terminó, pero el closure mantiene esas referencias vivas:</p>
+<p>En DaWeb, cuando <code>loginConGithub</code> crea un <code>setInterval</code>, el callback captura <code>intervaloRef</code>, <code>aceptarToken</code> y <code>navegar</code>. Aunque <code>loginConGithub</code> ya terminó, el closure mantiene esas referencias vivas:</p>
 
 <div class="code-wrap">
   <span class="file-label">src/pages/Login.jsx — closure en setInterval</span>
-<pre><code class="language-js">const loginConGithub = () => {
-  // popup, intervaloRef, aceptarToken, navegar son capturados por el closure
+<pre><code class="language-js">const loginConGithub = () =&gt; {
   const popup = window.open('/oauth2/authorization/github', ...);
-
-  intervaloRef.current = setInterval(() => {
-    // Esta función "recuerda" popup, intervaloRef, aceptarToken y navegar
-    // aunque loginConGithub ya terminó hace rato
+  intervaloRef.current = setInterval(() =&gt; {
+    // Esta arrow recuerda popup, intervaloRef, aceptarToken, navegar
     if (popup.closed) { clearInterval(intervaloRef.current); return; }
-    // ...
-    aceptarToken(datos.token);  // aceptarToken del contexto, capturado en el closure
+    aceptarToken(datos.token);
     navegar('/');
   }, 400);
-  // loginConGithub termina aquí, pero el intervalo sigue vivo
+  // loginConGithub termina aquí; el intervalo sigue vivo
 };</code></pre>
 </div>
 
-<h3>Short-circuit evaluation: el gotcha más clásico de JSX</h3>
-<p>El operador <code>&&</code> devuelve el primer valor <em>falsy</em> que encuentra, o el último valor si todos son <em>truthy</em>:</p>
+<div class="tip-regla">
+  Cada render de un componente React crea closures NUEVOS con las variables de ese render. Si un efecto "se quedó con datos viejos", probablemente es un <em>stale closure</em>: añade la variable a las dependencias.
+</div>
+
+<h3>12.3 Short-circuit en JSX: el gotcha del <code>0</code></h3>
 
 <div class="code-wrap">
 <pre><code class="language-jsx">// ❌ PELIGRO: si productos.length es 0, React renderiza el 0 en pantalla
-{productos.length && &lt;Lista productos={productos} /&gt;}
-// porque: 0 && &lt;Lista/&gt; = 0 (falsy, pero 0 es un número válido para el DOM)
+{productos.length &amp;&amp; &lt;Lista productos={productos} /&gt;}
 
-// ✅ CORRECTO: comparación explícita
-{productos.length > 0 && &lt;Lista productos={productos} /&gt;}
+// ✅ Comparación explícita
+{productos.length &gt; 0 &amp;&amp; &lt;Lista productos={productos} /&gt;}
 
-// ✅ TAMBIÉN CORRECTO: ternario
+// ✅ Ternario
 {productos.length ? &lt;Lista productos={productos} /&gt; : null}</code></pre>
 </div>
 
 <table>
-  <tr><th>Valor</th><th>¿Es falsy?</th><th>¿JSX renderiza algo?</th></tr>
-  <tr><td><code>false</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
-  <tr><td><code>null</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
-  <tr><td><code>undefined</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
-  <tr><td><code>0</code></td><td>Sí</td><td><strong>¡Sí! Renderiza el "0" en pantalla</strong></td></tr>
-  <tr><td><code>''</code></td><td>Sí</td><td>No (string vacío no visible)</td></tr>
+  <tr><th>Valor</th><th>¿Es falsy?</th><th>¿JSX lo renderiza?</th></tr>
+  <tr><td><code>false</code></td><td>Sí</td><td>No</td></tr>
+  <tr><td><code>null</code></td><td>Sí</td><td>No</td></tr>
+  <tr><td><code>undefined</code></td><td>Sí</td><td>No</td></tr>
+  <tr><td><code>0</code></td><td>Sí</td><td><strong>¡Sí! Aparece "0" en pantalla</strong></td></tr>
+  <tr><td><code>''</code></td><td>Sí</td><td>No (string vacío invisible)</td></tr>
 </table>
 
-<h3><code>Object.fromEntries</code>: construir un mapa en O(1)</h3>
-<p>En <code>src/api/productos.js</code>:</p>
-<div class="code-wrap">
-<pre><code class="language-js">const ETIQUETAS_ESTADO = Object.fromEntries(
-  ESTADOS_PRODUCTO.map((e) => [e.valor, e.etiqueta])
-);
-export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code></pre>
-</div>
-<p><code>ESTADOS_PRODUCTO.map(e => [e.valor, e.etiqueta])</code> transforma el array en un array de pares <code>['NUEVO', 'Nuevo']</code>. <code>Object.fromEntries</code> convierte esos pares en un objeto <code>{ NUEVO: 'Nuevo', ... }</code>. Ahora <code>etiquetaEstado('NUEVO')</code> es O(1) (acceso directo a propiedad) en lugar de O(n) (recorrer el array con <code>.find()</code>). Importa especialmente cuando se llama muchas veces seguidas (renderizar una lista de productos).</p>
+<h3>12.4 <code>Object.fromEntries</code>: convertir array de pares en objeto</h3>
 
-<h3>Preguntas trampa del entrevistador</h3>
+<div class="code-wrap">
+  <span class="file-label">src/api/productos.js — caso real</span>
+<pre><code class="language-js">const ETIQUETAS_ESTADO = Object.fromEntries(
+  ESTADOS_PRODUCTO.map((e) =&gt; [e.valor, e.etiqueta])
+);
+export const etiquetaEstado = (valor) =&gt; ETIQUETAS_ESTADO[valor] ?? valor;</code></pre>
+</div>
+
+<p><code>.map(e =&gt; [e.valor, e.etiqueta])</code> transforma a array de pares <code>['NUEVO', 'Nuevo']</code>. <code>fromEntries</code> los convierte en objeto <code>{ NUEVO: 'Nuevo', ... }</code>. Ahora <code>etiquetaEstado('NUEVO')</code> es O(1) (lookup directo), en vez de O(n) (recorrer con <code>.find()</code>). Cada renderizado de la lista de productos lo agradece.</p>
+
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-arrow-up-circle"></i> SOLID · OCP (Open/Closed)</span>
+  <p>Para añadir un nuevo estado de producto sólo añades una entrada al array <code>ESTADOS_PRODUCTO</code>. <code>etiquetaEstado</code> no se toca; sigue siendo válida. La función está <em>cerrada</em> a modificación pero <em>abierta</em> a extensión a través de su tabla de datos.</p>
+<div class="code-wrap">
+<pre><code class="language-js">// Sin OCP: cada estado nuevo te obliga a tocar la función
+export const etiquetaEstado = (v) =&gt; {
+  if (v === 'NUEVO') return 'Nuevo';
+  if (v === 'COMO_NUEVO') return 'Como nuevo';
+  // ... 5 if más cada vez que añadas un estado
+};
+
+// Con OCP: extiendes el array, la función se mantiene
+export const ESTADOS_PRODUCTO = [
+  { valor: 'NUEVO', etiqueta: 'Nuevo' },
+  { valor: 'COMO_NUEVO', etiqueta: 'Como nuevo' },
+  // añadir aquí, listo
+];</code></pre>
+</div>
+</div>
+
+<h2>13. Preguntas trampa frecuentes</h2>
 
 <div class="callout warning">
   <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué imprime <code>console.log(0 || 'hola')</code>? ¿Y <code>0 ?? 'hola'</code>?"</div>
-  <p><strong>||</strong>: devuelve el primer valor truthy o el último si todos son falsy. Como <code>0</code> es falsy, salta al siguiente: <strong>'hola'</strong>. <br>
-  <strong>??</strong>: sólo trata <code>null</code> y <code>undefined</code> como "vacíos". Como <code>0</code> no es ni null ni undefined, devuelve <strong>0</strong>. Diferencia crítica para manejar precios (un precio de 0€ es válido).</p>
+  <p><strong>||</strong>: devuelve el primer truthy o el último falsy. <code>0</code> es falsy → <strong>'hola'</strong>. <strong>??</strong>: sólo trata null/undefined como vacío. <code>0</code> no lo es → <strong>0</strong>. Diferencia crítica con precios (un precio de 0 es válido).</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Puede un <code>async function</code> lanzar un error SÍNCRONO?"</div>
-  <p><strong>Sí</strong>. Si el error ocurre antes del primer <code>await</code>, el runtime lo envuelve en una Promise rechazada. El llamador debe capturarlo con <code>catch</code> o <code>try/catch</code> aunque sea síncrono. Ejemplo: <code>async function f() { throw new Error('sync'); }</code> → <code>f().catch(e => console.log(e.message))</code> imprime "sync".</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Puede una <code>async function</code> lanzar un error síncrono?"</div>
+  <p><strong>Sí.</strong> Si el error ocurre antes del primer <code>await</code>, el runtime lo envuelve en una Promise rechazada. El llamador captura con <code>.catch</code> o <code>try/catch</code> igualmente.</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si haces <code>await</code> de un valor que NO es una Promise?"</div>
-  <p>JavaScript lo envuelve automáticamente en <code>Promise.resolve(valor)</code>. <code>await 42</code> devuelve <code>42</code>. <code>await null</code> devuelve <code>null</code>. No da error. Esto es útil cuando una función puede devolver un valor síncrono o asíncrono indistintamente.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si haces <code>await</code> de un valor que NO es Promise?"</div>
+  <p>JS lo envuelve en <code>Promise.resolve(valor)</code>. <code>await 42</code> devuelve <code>42</code>. Útil cuando una función puede devolver valor síncrono o asíncrono indistintamente.</p>
 </div>
 
 <div class="callout warning">
-  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué <code>const o = {}; o.x = 1</code> no da error si o es const?"</div>
-  <p><code>const</code> impide reasignar la <em>referencia</em> (no puedes hacer <code>o = {}</code> de nuevo), pero el objeto en sí es mutable. <code>const</code> no implica inmutabilidad del contenido. Para objetos verdaderamente inmutables: <code>Object.freeze(o)</code>. React no usa freeze; en su lugar, la convención es nunca mutar y siempre crear objetos nuevos con spread.</p>
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué <code>const o = {}; o.x = 1</code> no da error?"</div>
+  <p><code>const</code> impide reasignar la referencia, no mutar el contenido. Para inmutabilidad real: <code>Object.freeze(o)</code>. React no usa freeze; la convención es no mutar y crear objetos nuevos con spread.</p>
 </div>
 
-<h2>13. Quiz</h2>
+<h2>14. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -566,17 +616,17 @@ export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
-  <p class="quiz-pregunta">¿Por qué <code>await</code> aparece dentro de funciones marcadas como <code>async</code>?</p>
+  <p class="quiz-pregunta">¿Por qué <code>await</code> aparece dentro de funciones <code>async</code>?</p>
   <div class="quiz-opciones">
     <button class="quiz-opcion" data-correcta="0">Por convención únicamente.</button>
-    <button class="quiz-opcion" data-correcta="1">Porque <code>await</code> es sintaxis sólo válida dentro de funciones <code>async</code>.</button>
+    <button class="quiz-opcion" data-correcta="1">Porque <code>await</code> es sintaxis sólo válida dentro de <code>async</code> (o top-level de módulo).</button>
     <button class="quiz-opcion" data-correcta="0">Porque <code>async</code> habilita el modo estricto.</button>
     <button class="quiz-opcion" data-correcta="0">Porque sin <code>async</code> la función bloquea el navegador.</button>
   </div>
-  <p class="quiz-feedback" data-ok="Exacto. Es un requisito del lenguaje." data-ko="Fuera de async, await da SyntaxError (excepto en top-level de un módulo)."></p>
+  <p class="quiz-feedback" data-ok="Exacto. Requisito del lenguaje." data-ko="Fuera de async, await da SyntaxError (excepto top-level de un módulo)."></p>
 </div>
 
-<h2>13. Ejercicios sobre el proyecto</h2>
+<h2>15. Ejercicios sobre el proyecto</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">
@@ -586,7 +636,7 @@ export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code
   </div>
   <ol>
     <li>Abre <code>src/api/usuarios.js</code>.</li>
-    <li>Reescribe <code>crearUsuario</code> usando <code>function</code> en lugar de arrow.</li>
+    <li>Reescribe <code>crearUsuario</code> con <code>function</code> en vez de arrow.</li>
     <li>Comprueba que el registro sigue funcionando.</li>
   </ol>
   <details>
@@ -594,7 +644,7 @@ export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code
 <pre><code class="language-js">export function crearUsuario(datos) {
   return request('/usuarios', { method: 'POST', body: datos });
 }</code></pre>
-    <p>Funciona porque no usa <code>this</code> ni nada que cambie entre las dos formas.</p>
+    <p>Funciona porque no usa <code>this</code> ni nada que cambie entre formas.</p>
   </details>
 </div>
 
@@ -632,7 +682,7 @@ export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code
     .then((lista) =&gt; setCategorias(lista ?? []))
     .catch(() =&gt; setCategorias([]));
 }, []);</code></pre>
-  <p>Reescríbelo dentro de una función async interna. Comprueba que sigue funcionando.</p>
+  <p>Reescríbelo dentro de una función async interna.</p>
   <details>
     <summary>Solución</summary>
 <pre><code class="language-js">useEffect(() =&gt; {
@@ -646,6 +696,6 @@ export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code
   };
   cargar();
 }, []);</code></pre>
-    <p>Nota: el callback de <code>useEffect</code> NO puede ser async directamente (debe devolver una función de limpieza o undefined, no una Promesa). Por eso definimos una función interna y la llamamos.</p>
+    <p>Nota: el callback de <code>useEffect</code> NO puede ser async directamente (debe devolver función de limpieza o undefined). Por eso definimos función interna y la llamamos.</p>
   </details>
 </div>

@@ -1,21 +1,90 @@
 <h1>Funcionalidades por página</h1>
-<p class="subtitulo">Recorrido completo: para cada página, qué hace, dónde está, qué APIs llama y cómo modificarla.</p>
+<p class="subtitulo">Las 15 páginas de DaWeb agrupadas por flujo de usuario, con CRUD inline.</p>
 
-<p class="lead">Ésta es la sección de "consulta rápida" para la entrevista. Si te piden modificar una funcionalidad concreta, vienes aquí, localizas la página y tienes a mano código real, flujo, ejercicios y puntos de modificación. Incluye las 15 páginas de la aplicación.</p>
+<p class="lead">Esta sección agrupa las páginas por <strong>flujo de usuario</strong>, no como un catálogo plano. Ver cómo se conectan las páginas (Home → Productos → DetalleProducto → Compra) revela el diseño mucho mejor que listarlas en orden alfabético. Para cada página tienes: qué hace, dónde está, qué API llama, qué letras de CRUD implementa y ejercicios.</p>
 
-<h2>Índice rápido</h2>
+<h2>Flujos de usuario y páginas que los componen</h2>
+
+<figure class="diagrama">
+  <figcaption>Mapa de flujos de la app</figcaption>
+  <pre class="mermaid">
+flowchart LR
+  subgraph Catalogo["Explorar"]
+    Home --> Productos
+    Productos --> Detalle["DetalleProducto"]
+  end
+  subgraph Cuenta["Cuenta"]
+    Registro --> Login --> Perfil
+    Perfil --> PP["PerfilProductos"]
+    Perfil --> PV["PerfilVentas"]
+    Perfil --> PC["PerfilCompras"]
+  end
+  subgraph Vender["Vender"]
+    NuevoProducto --> PP
+    PP --> EditarProducto
+  end
+  subgraph Comprar["Comprar"]
+    Detalle --> Compra["botón Comprar"]
+    Compra --> PC
+  end
+  subgraph Admin["Administrar"]
+    AU["AdminUsuarios"]
+    AT["AdminTransacciones"]
+  end
+  </pre>
+</figure>
+
+<h3>CRUD por página (referencia rápida)</h3>
+
+<table>
+  <tr><th>Página</th><th>C</th><th>R</th><th>U</th><th>D</th><th>API que usa</th></tr>
+  <tr><td>Home</td><td></td><td>—</td><td></td><td></td><td>—</td></tr>
+  <tr><td>Productos (catálogo)</td><td></td><td>✓ (lista + filtros)</td><td></td><td></td><td>productos, categorias</td></tr>
+  <tr><td>DetalleProducto</td><td>✓ (compraventa)</td><td>✓ (1 producto)</td><td>✓ (visualizaciones)</td><td></td><td>productos, compraventas</td></tr>
+  <tr><td>NuevoProducto</td><td>✓ (producto)</td><td></td><td></td><td></td><td>productos, categorias</td></tr>
+  <tr><td>EditarProducto</td><td></td><td>✓ (recarga)</td><td>✓ (PATCH)</td><td>✓ (DELETE)</td><td>productos</td></tr>
+  <tr><td>Login / Registro</td><td>✓ (usuario en registro)</td><td></td><td></td><td></td><td>auth, usuarios</td></tr>
+  <tr><td>Perfil</td><td></td><td>✓ (mis datos)</td><td>✓ (PATCH)</td><td></td><td>usuarios</td></tr>
+  <tr><td>PerfilProductos</td><td></td><td>✓ (mis productos)</td><td></td><td></td><td>productos</td></tr>
+  <tr><td>PerfilVentas / Compras</td><td></td><td>✓ (transacciones)</td><td></td><td></td><td>compraventas</td></tr>
+  <tr><td>AdminUsuarios</td><td></td><td>✓ (todos)</td><td></td><td></td><td>usuarios</td></tr>
+  <tr><td>AdminTransacciones</td><td></td><td>✓ (todas)</td><td></td><td></td><td>compraventas</td></tr>
+</table>
+
+<div class="tip-regla">
+  <strong>Mapeo mental:</strong> en cualquier app REST, los "list" y "detail" son <strong>R</strong>, los formularios "nuevo" son <strong>C</strong>, los "editar" son <strong>U</strong>, los botones "borrar" son <strong>D</strong>. Si esto se cumple en una página y no en otra, hay algo raro.
+</div>
+
+<h2>Índice rápido por página</h2>
 <ul>
-  <li><a href="#home">Home</a></li>
-  <li><a href="#login">Login</a> y <a href="#registro">Registro</a></li>
-  <li><a href="#productos">Productos</a> (listado con filtros)</li>
-  <li><a href="#detalle">DetalleProducto</a></li>
-  <li><a href="#nuevo">NuevoProducto</a> y <a href="#editar">EditarProducto</a></li>
-  <li><a href="#perfil">Perfil</a> + <a href="#perfil-productos">PerfilProductos</a>, <a href="#perfil-ventas">PerfilVentas</a>, <a href="#perfil-compras">PerfilCompras</a></li>
-  <li><a href="#perfil-usuario">PerfilUsuario</a> (ver otro)</li>
-  <li><a href="#admin-usuarios">AdminUsuarios</a></li>
-  <li><a href="#admin-transacciones">AdminTransacciones</a></li>
-  <li><a href="#error">Error404</a></li>
+  <li><strong>Explorar:</strong> <a href="#home">Home</a> · <a href="#productos">Productos</a> · <a href="#detalle">DetalleProducto</a></li>
+  <li><strong>Cuenta:</strong> <a href="#login">Login</a> · <a href="#registro">Registro</a> · <a href="#perfil">Perfil</a> · <a href="#perfil-usuario">PerfilUsuario</a></li>
+  <li><strong>Vender:</strong> <a href="#nuevo">NuevoProducto</a> · <a href="#editar">EditarProducto</a></li>
+  <li><strong>Comprar:</strong> ver DetalleProducto (acción) + PerfilCompras (historial)</li>
+  <li><strong>Admin:</strong> <a href="#admin-usuarios">AdminUsuarios</a> · <a href="#admin-transacciones">AdminTransacciones</a></li>
+  <li><strong>Error:</strong> <a href="#error">Error404</a></li>
 </ul>
+
+<div class="solid-aplicado">
+  <span class="principio"><i class="bi bi-puzzle"></i> SOLID · ISP (Interface Segregation)</span>
+  <p>Hoy <code>NuevoProducto.jsx</code> y <code>EditarProducto.jsx</code> comparten ~70% de su formulario pero NO comparten componente; cada uno duplica los inputs. Un refactor ISP los partiría:</p>
+<div class="code-wrap">
+<pre><code class="language-jsx">// FormularioProducto: SOLO los campos editables
+function FormularioProducto({ valores, onChange }) {
+  return (
+    &lt;&gt;
+      &lt;Form.Control name="titulo" value={valores.titulo} onChange={onChange} /&gt;
+      &lt;Form.Control name="precio" value={valores.precio} onChange={onChange} /&gt;
+      {/* ... */}
+    &lt;/&gt;
+  );
+}
+
+// NuevoProducto: añade botón "Crear"
+// EditarProducto: añade botón "Guardar" y "Eliminar"
+// Cada uno depende SOLO de los campos que necesita.</code></pre>
+</div>
+</div>
 
 <!-- ───────── HOME ───────── -->
 <h2 id="home">Home — <code>src/pages/Home.jsx</code></h2>
@@ -828,9 +897,39 @@ useEffect(() =&gt; {
   <li>Si el usuario navega a otro producto (id cambia): <code>ref.current = id_viejo ≠ id_nuevo</code> → suma y actualiza el ref.</li>
 </ul>
 
-<h3>Diagrama de secuencia: ver detalle de producto y sumar visualización</h3>
-<p>Cómo se cargan los datos del producto y, en paralelo, se incrementa el contador de visualizaciones — con la protección anti-StrictMode:</p>
+<h3>Diagrama de secuencia: ver detalle + sumar visualización</h3>
 
+<figure class="diagrama">
+  <figcaption>DetalleProducto carga datos y, en paralelo, hace PATCH del contador</figcaption>
+  <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as Usuario
+  participant D as DetalleProducto.jsx
+  participant A as api/productos.js
+  participant B as Backend
+  participant DB as MySQL
+  U->>D: click Link /productos/42
+  D->>D: useParams() → id="42"
+  D->>D: useEffect dispara con dep [id]
+  D->>A: obtenerProducto(id)
+  A->>B: GET /productos/42
+  B->>DB: SELECT
+  DB-->>B: row
+  B-->>A: 200 + producto
+  A-->>D: producto
+  D->>D: setProducto(p) → re-render
+  Note over D: if (ref.current !== id) → primer paso del StrictMode
+  D->>A: sumarVisualizacion(id)
+  A->>B: PATCH /productos/42/visualizaciones
+  B->>DB: UPDATE
+  B-->>A: 204
+  Note over D: ref.current = id → segunda llamada NO ocurre
+  </pre>
+</figure>
+
+<details>
+<summary>Ver versión ASCII original</summary>
 <div class="code-wrap">
   <span class="file-label">DetalleProducto: GET producto + PATCH visualizaciones</span>
 <pre><code class="language-text">Usuario  DetalleProducto.jsx  productos.js  client.js   Vite proxy  Backend   MySQL
@@ -872,10 +971,44 @@ useEffect(() =&gt; {
    │            │ }                 │           │            │          │        │
    │ ve datos ◀ │                   │           │            │          │        │</code></pre>
 </div>
+</details>
 
 <h3>Diagrama de secuencia: comprar un producto (server refresh)</h3>
-<p>Tres peticiones encadenadas: crear la compraventa, refrescar el producto y mostrar el badge "Vendido":</p>
 
+<figure class="diagrama">
+  <figcaption>Comprar: POST compraventa + GET producto refrescado</figcaption>
+  <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as Usuario
+  participant D as DetalleProducto
+  participant CV as api/compraventas.js
+  participant P as api/productos.js
+  participant B as Backend
+  U->>D: click "Comprar"
+  alt sin sesión
+    D->>U: navegar('/login')
+  else con sesión
+    D->>CV: crearCompraventa({idProducto, idComprador})
+    CV->>B: POST /compraventas
+    B-->>CV: 201 Created
+    CV-->>D: ok
+    D->>D: setMensaje('¡Compra solicitada!')
+    D->>P: obtenerProducto(id)  (refresh)
+    P->>B: GET /productos/42
+    B-->>P: 200 + producto con vendido=true
+    P-->>D: refrescado
+    D->>D: setProducto → re-render con badge "Vendido"
+  end
+  </pre>
+</figure>
+
+<div class="tip-regla">
+  <strong>Server refresh vs optimistic update.</strong> DaWeb usa <em>server refresh</em>: tras el POST, vuelve a leer del servidor. Ventaja: consistencia garantizada. Coste: una petición extra. Alternativa: <em>optimistic update</em> (<code>setProducto({...producto, vendido:true})</code> antes de la respuesta) — más rápido pero requiere revertir si falla.
+</div>
+
+<details>
+<summary>Ver versión ASCII original</summary>
 <div class="code-wrap">
   <span class="file-label">acción "Comprar" — POST + GET de refresh</span>
 <pre><code class="language-text">Usuario  DetalleProducto  compraventas.js  productos.js  client.js  Vite/Backend  MySQL
@@ -920,8 +1053,13 @@ useEffect(() =&gt; {
    │ ve badge ◀│                  │              │             │           │          │
    │ "Vendido" │                  │              │             │           │          │</code></pre>
 </div>
+</details>
 
 <h3>Mapa de interacciones de las páginas con los módulos api/</h3>
+
+<div class="tip-regla">
+  <strong>Patrón <code>{[e.target.name]: e.target.value}</code>:</strong> UN solo handler controla N inputs, siempre que cada <code>&lt;input&gt;</code> tenga un atributo <code>name</code> que coincida con la clave del objeto del estado. Evita escribir <code>cambioNombre</code>, <code>cambioCorreo</code>, etc.
+</div>
 
 <div class="code-wrap">
   <span class="file-label">qué API consume cada página</span>

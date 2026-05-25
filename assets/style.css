@@ -357,10 +357,11 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 
 /* ───── Content ───── */
 .contenido {
-  padding: 2.75rem 3rem 6rem;
+  padding: 2.75rem 3rem 8rem; /* +padding-bottom para que el FAB no tape la última tarjeta */
   max-width: var(--max-content);
   margin: 0 auto;
   width: 100%;
+  min-width: 0;
 }
 .loader {
   text-align: center;
@@ -453,10 +454,12 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   border-radius: 0 !important;
   background: #1e1e2e !important;
   font-size: 0.85rem;
-  max-height: 480px;
+  max-height: 520px;
   overflow: auto;
   padding: 1rem 1.1rem !important;
 }
+/* Las tablas anotadas (código + comentario humano) NO deben recortarse en alto */
+.code-wrap.sin-limite pre { max-height: none; }
 .code-wrap pre code { font-family: var(--mono) !important; line-height: 1.6; }
 
 .btn-copiar {
@@ -506,7 +509,129 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 .callout.danger  { border-left-color: var(--danger);  background: var(--danger-bg); }
 .callout.danger .callout-titulo  { color: var(--danger); }
 
+/* ───── Tip-regla: regla mnemotécnica corta para reproducir un patrón de memoria ───── */
+.tip-regla {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  background: var(--success-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+.tip-regla::before {
+  content: '\F235'; /* bi-lightbulb-fill — fallback a "Regla" si la fuente no carga */
+  font-family: 'bootstrap-icons';
+  color: var(--success);
+  font-size: 1rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.tip-regla strong { color: var(--success); font-weight: 700; }
+.tip-regla code { background: rgba(0,0,0,0.05); }
+
+/* ───── Aplicado SOLID/CRUD: principio aplicado al código de la sección ───── */
+.solid-aplicado {
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 0.95rem 1.15rem;
+  margin: 1.25rem 0;
+}
+.solid-aplicado .principio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  background: var(--primary-bg);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  margin-bottom: 0.55rem;
+}
+.solid-aplicado p { margin: 0.4rem 0; color: var(--ink-soft); }
+.solid-aplicado .code-wrap { margin-top: 0.6rem; }
+
+/* ───── Diagramas Mermaid ───── */
+.diagrama {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 1.1rem 0.8rem 0.9rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.diagrama .mermaid {
+  display: inline-block;
+  min-width: 100%;
+  text-align: center;
+}
+.diagrama figcaption,
+.diagrama-titulo {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: left;
+  margin: 0 0 0.65rem 0.25rem;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.diagrama figcaption::before,
+.diagrama-titulo::before {
+  content: '◇ ';
+  color: var(--primary);
+}
+.mermaid { font-family: var(--sans); }
+
+/* ───── Tabla anotada (código + explicación humana al lado) ───── */
+.anotada {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.25rem 0;
+  font-size: 0.85rem;
+}
+.anotada td {
+  padding: 0.55rem 0.85rem;
+  vertical-align: top;
+  border-top: 1px solid var(--border);
+}
+.anotada tr:first-child td { border-top: none; }
+.anotada td.code {
+  font-family: var(--mono);
+  background: var(--surface-soft);
+  color: var(--ink);
+  width: 48%;
+  white-space: pre;
+  font-size: 0.82rem;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+}
+.anotada td.nota { color: var(--ink-soft); }
+.anotada td.nota strong { color: var(--primary); }
+.tabla-wrap > .anotada { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+
 /* ───── Tables ───── */
+/* Wrap insertado por app.js para que las tablas anchas hagan scroll horizontal en móvil */
+.tabla-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 1.25rem 0;
+  border-radius: var(--radius-sm);
+  -webkit-overflow-scrolling: touch;
+}
+.tabla-wrap table { margin: 0; }
 .contenido table {
   width: 100%;
   border-collapse: collapse;
@@ -733,14 +858,16 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 }
 .flujo-paso {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* mejor con texto multilinea */
   gap: 0.85rem;
   padding: 0.7rem 1rem;
   background: var(--surface-soft);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   color: var(--ink-soft);
+  line-height: 1.55;
 }
+.flujo-paso .num { margin-top: 1px; }
 .flujo-paso .num {
   background: var(--primary);
   color: #fff;
@@ -852,6 +979,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+.dos-cols > * { min-width: 0; } /* evita overflow horizontal cuando hay <pre> dentro */
 
 .tarjeta {
   background: var(--surface);
@@ -951,11 +1079,21 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   }
   .sidebar.abierta { left: 0; }
   .layout { grid-template-columns: 1fr; }
-  .contenido { padding: 1.75rem 1.25rem 6rem; }
+  .contenido { padding: 1.75rem 1.25rem 7rem; }
   .search-wrap { max-width: none; }
   .dos-cols { grid-template-columns: 1fr; }
   .fab span { display: none; }
   .fab { padding: 0.85rem; }
+  /* En móvil cualquier tabla puede romper el layout: forzamos scroll en su wrapper */
+  .tabla-wrap { border: 1px solid var(--border); }
+  .anotada td.code { font-size: 0.78rem; }
+  /* Que las anotadas pasen a vertical en pantallas muy estrechas */
+  .anotada td.code { width: 55%; }
+}
+@media (max-width: 540px) {
+  .anotada, .anotada tbody, .anotada tr, .anotada td { display: block; width: 100%; }
+  .anotada td.code { border-right: none; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  .anotada td.nota { padding-top: 0.5rem; }
 }
 
 .overlay {
@@ -968,6 +1106,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   -webkit-backdrop-filter: blur(2px);
 }
 .overlay.activa { display: block; }
+body.sidebar-bloqueada { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

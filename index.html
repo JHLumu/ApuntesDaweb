@@ -80,6 +80,23 @@
 
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+  <!-- Mermaid: diagramas visuales renderizados desde texto. -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    const tema = document.documentElement.dataset.tema === 'oscuro' ? 'dark' : 'default';
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: tema,
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      sequence: { useMaxWidth: true },
+    });
+    window.__mermaid = mermaid;
+    // Aviso a app.js de que ya puede renderizar lo que tenga en el DOM.
+    document.dispatchEvent(new CustomEvent('mermaid-listo'));
+  </script>
+
   <script src="assets/app.js" defer></script>
 </body>
 </html>
