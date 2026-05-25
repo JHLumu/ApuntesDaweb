@@ -1,0 +1,346 @@
+window.__SECC = window.__SECC || {};
+window.__SECC["css"] = `<h1>CSS y diseño responsive</h1>
+<p class="subtitulo">Cómo se construye el aspecto visual de DaWeb y cómo se adapta a móviles.</p>
+
+<p class="lead">El diseño de DaWeb se sostiene sobre cuatro pilares: <strong>Bootstrap 5</strong> (sistema de columnas y utilidades), <strong>variables CSS propias</strong> (paleta lila/lavanda en <code>theme.css</code>), <strong>CSS Grid</strong> (cuadrículas auto-ajustables) y <strong>Media Queries</strong> (para móvil). En esta sección los recorremos uno a uno con código real del proyecto.</p>
+
+<h2>1. CSS: las tres formas de aplicarlo</h2>
+
+<table>
+  <tr><th>Forma</th><th>Cuándo</th><th>Ejemplo en DaWeb</th></tr>
+  <tr><td>Hoja de estilos externa</td><td>Estilos compartidos por toda la app</td><td><code>theme.css</code>, <code>index.css</code></td></tr>
+  <tr><td>CSS asociado a un componente</td><td>Estilos específicos de una página</td><td><code>pages/Productos.css</code>, <code>pages/Login.css</code>, <code>components/Header.css</code></td></tr>
+  <tr><td>Estilo inline (objeto JS)</td><td>Valores dinámicos puntuales</td><td><code>style={{ color: 'var(--ink)' }}</code> en ProductoCard.jsx</td></tr>
+</table>
+
+<h3>Por qué inline en React es un objeto</h3>
+<div class="code-wrap">
+  <span class="file-label">JSX</span>
+<pre><code class="language-jsx">&lt;h4 style={{ color: 'var(--ink)' }}&gt;Hola&lt;/h4&gt;</code></pre>
+</div>
+<p>Las dos llaves son: las del JSX para meter una expresión, y las del objeto JavaScript. Las propiedades van en <strong>camelCase</strong> (<code>backgroundColor</code>, no <code>background-color</code>).</p>
+
+<h2>2. Variables CSS (custom properties)</h2>
+<p>Definidas en <code>:root</code> (o en cualquier selector), permiten reusar valores como una paleta. Toda la identidad visual del proyecto vive en <code>theme.css</code>:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/theme.css</span>
+<pre><code class="language-css">:root {
+  --petal-frost: #ffd6ff;
+  --mauve: #e7c6ff;
+  --mauve-2: #c8b6ff;
+  --periwinkle: #b8c0ff;
+  --periwinkle-2: #bbd0ff;
+
+  --surface: #ffffff;
+  --surface-soft: #f6f4fb;
+  --primary: #c8b6ff;
+  --ink: #2a2440;
+  --ink-soft: #4a4458;
+
+  --radius-card: 1rem;
+  --radius-field: 0.75rem;
+  --shadow-soft: 0 6px 20px rgba(122, 102, 168, 0.14);
+  --shadow-hover: 0 16px 34px rgba(122, 102, 168, 0.26);
+  --transition: 0.25s ease;
+}</code></pre>
+</div>
+
+<p>Y se usan en cualquier sitio con <code>var(--nombre)</code>:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/theme.css — usos</span>
+<pre><code class="language-css">.card {
+  border: none;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-lav {
+  background: var(--ink);
+  color: #fff;
+  border-radius: 999px;
+  transition: background var(--transition);
+}
+.btn-lav:hover { background: #3d3559; }
+
+.seccion-titulo {
+  border-left: 4px solid var(--primary);
+  padding-left: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}</code></pre>
+</div>
+
+<div class="callout tip">
+  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> ¿Por qué variables y no colores escritos a mano?</div>
+  <p>Para cambiar TODO el tema visual con un solo edit. Si reemplazas <code>--primary</code> por un verde, todas las cards, botones y bordes se vuelven verdes sin tocar nada más.</p>
+</div>
+
+<h3>Clases utilitarias del proyecto</h3>
+<p>En <code>theme.css</code> hay tres clases muy usadas:</p>
+<ul>
+  <li><code>.card-hover</code>: cuando pasas el ratón, la tarjeta sube y se le aumenta la sombra.</li>
+  <li><code>.seccion-titulo</code>: título con una barra lila a la izquierda. La verás en casi todas las páginas.</li>
+  <li><code>.btn-lav</code>: el botón principal del proyecto (oscuro, redondeado, ese "look" lavanda).</li>
+</ul>
+
+<h2>3. Bootstrap 5: el sistema de columnas</h2>
+<p>Bootstrap divide la pantalla en <strong>12 columnas</strong>. Para layout, usas <code>Container</code> &gt; <code>Row</code> &gt; <code>Col</code>.</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/DetalleProducto.jsx</span>
+<pre><code class="language-jsx">&lt;Container className="py-4"&gt;
+  &lt;Row className="g-4"&gt;
+    &lt;Col lg={7}&gt;
+      &lt;Card&gt;...&lt;/Card&gt;
+    &lt;/Col&gt;
+    &lt;Col lg={5}&gt;
+      &lt;Card&gt;...&lt;/Card&gt;
+    &lt;/Col&gt;
+  &lt;/Row&gt;
+&lt;/Container&gt;</code></pre>
+</div>
+
+<p>Lectura: en pantallas grandes (<code>lg</code> y más), la primera columna ocupa 7/12 (60%) y la segunda 5/12 (40%). En móvil (por debajo de <code>lg</code>), Bootstrap apila ambas a 12/12.</p>
+
+<h3>Breakpoints de Bootstrap</h3>
+<table>
+  <tr><th>Sufijo</th><th>Tamaño mínimo</th><th>Caso típico</th></tr>
+  <tr><td><code>xs</code> (implícito)</td><td>0</td><td>Móviles</td></tr>
+  <tr><td><code>sm</code></td><td>≥ 576px</td><td>Móviles grandes</td></tr>
+  <tr><td><code>md</code></td><td>≥ 768px</td><td>Tabletas</td></tr>
+  <tr><td><code>lg</code></td><td>≥ 992px</td><td>Portátiles</td></tr>
+  <tr><td><code>xl</code></td><td>≥ 1200px</td><td>Monitores</td></tr>
+  <tr><td><code>xxl</code></td><td>≥ 1400px</td><td>Grandes</td></tr>
+</table>
+
+<h3>Clases utilitarias de Bootstrap más usadas en DaWeb</h3>
+<table>
+  <tr><th>Prefijo</th><th>Significa</th><th>Ejemplo</th></tr>
+  <tr><td><code>m-N</code>, <code>p-N</code></td><td>margin / padding (0–5)</td><td><code>mb-3</code>: margin-bottom 1rem</td></tr>
+  <tr><td><code>py-N</code>, <code>px-N</code></td><td>padding vertical/horizontal</td><td><code>py-4</code></td></tr>
+  <tr><td><code>d-flex</code></td><td>display: flex</td><td><code>d-flex gap-2</code></td></tr>
+  <tr><td><code>justify-content-*</code></td><td>alineación flex en cruce</td><td><code>justify-content-between</code></td></tr>
+  <tr><td><code>align-items-*</code></td><td>alineación flex</td><td><code>align-items-center</code></td></tr>
+  <tr><td><code>text-*</code></td><td>color o alineación</td><td><code>text-muted text-center</code></td></tr>
+  <tr><td><code>fw-*</code></td><td>font-weight</td><td><code>fw-bold</code></td></tr>
+  <tr><td><code>w-100</code> / <code>h-100</code></td><td>width/height 100%</td><td><code>w-100</code></td></tr>
+  <tr><td><code>rounded-pill</code></td><td>border-radius muy grande</td><td>en botones cápsula</td></tr>
+  <tr><td><code>d-none</code>, <code>d-md-block</code></td><td>ocultar / mostrar por breakpoint</td><td>Ocultar imagen en móvil del Login</td></tr>
+</table>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/Login.jsx — Mostrar/ocultar por breakpoint</span>
+<pre><code class="language-jsx">&lt;Col md={6} className="d-none d-md-block" style={{ backgroundColor: 'var(--primary)' }} /&gt;</code></pre>
+</div>
+<p>Lectura: oculto siempre (<code>d-none</code>) <strong>excepto</strong> a partir de <code>md</code> donde se muestra como bloque (<code>d-md-block</code>). En móviles desaparece para no robar espacio al formulario.</p>
+
+<h2>4. CSS Grid: cuadrículas inteligentes</h2>
+<p>Bootstrap es bueno para layouts globales pero para listas de productos hay algo mejor: <strong>CSS Grid</strong>. El proyecto la usa en la página de productos:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/Productos.css</span>
+<pre><code class="language-css">.productos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 576px) {
+  .productos-grid {
+    grid-template-columns: 1fr;
+  }
+}</code></pre>
+</div>
+
+<p>Lectura de <code>repeat(auto-fill, minmax(16rem, 1fr))</code>:</p>
+<ul>
+  <li><code>auto-fill</code>: mete cuantas columnas quepan.</li>
+  <li><code>minmax(16rem, 1fr)</code>: cada columna mide entre 16rem (256px) y 1 fracción del espacio.</li>
+</ul>
+<p>Resultado: en una pantalla grande caben 4-5 cards, en una mediana 3, en una pequeña 2, y en móvil una. <strong>Sin escribir media queries para cada tamaño</strong>. Sólo añadimos la regla extra para móvil con una columna explícita.</p>
+
+<h2>5. Media Queries</h2>
+<p>Una media query es "si el navegador cumple esta condición, aplica estas reglas".</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/Home.css — fragmento</span>
+<pre><code class="language-css">@media (max-width: 991.98px) {
+  .home-hero__titulo {
+    font-size: 2.4rem;     /* en pantallas medianas el título es más pequeño */
+  }
+}
+
+@media (max-width: 767.98px) {
+  .marquee {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .marquee__track--down { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee__track--up,
+  .marquee__track--down {
+    animation: none;     /* accesibilidad: desactivar animaciones */
+  }
+}</code></pre>
+</div>
+
+<h2>6. Animaciones con <code>@keyframes</code></h2>
+<p>La home tiene un carrusel vertical infinito ("marquee"). Está hecho con animación CSS:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/Home.css</span>
+<pre><code class="language-css">.marquee__track--up {
+  animation: marquee-up 24s linear infinite;
+}
+
+@keyframes marquee-up {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}</code></pre>
+</div>
+
+<p>Lectura: durante 24s, traslada el contenido un -50% en Y. Como el contenido se duplica en JSX (<code>[...BLOQUES, ...BLOQUES]</code>), al llegar al -50% el siguiente fotograma se ve exactamente igual que el primero, creando ilusión de bucle.</p>
+
+<h2>7. Estructura de estilos del proyecto</h2>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> <code>main.jsx</code> importa Bootstrap, <code>index.css</code> y <code>theme.css</code> globales.</div>
+  <div class="flujo-paso"><span class="num">2</span> <code>index.css</code> define tipografía base y reset.</div>
+  <div class="flujo-paso"><span class="num">3</span> <code>theme.css</code> define variables y clases utilitarias propias.</div>
+  <div class="flujo-paso"><span class="num">4</span> Cada página o componente que necesita estilos específicos importa su propio <code>.css</code>.</div>
+</div>
+
+<h2>8. Cómo Bootstrap convive con tus estilos personalizados</h2>
+<p>El orden importa. En <code>main.jsx</code>:</p>
+<div class="code-wrap">
+  <span class="file-label">main.jsx</span>
+<pre><code class="language-jsx">import 'bootstrap/dist/css/bootstrap.min.css'  // 1º Bootstrap
+import './index.css'                            // 2º base del proyecto
+import './theme.css'                            // 3º tema del proyecto</code></pre>
+</div>
+<p>Los estilos posteriores sobrescriben los anteriores cuando tienen la misma especificidad. Por eso <code>.btn-lav</code> definido en <code>theme.css</code> tiene precedencia sobre los botones por defecto de Bootstrap.</p>
+
+<h2>9. Quiz</h2>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
+  <p class="quiz-pregunta">Si en <code>theme.css</code> cambio <code>--primary: #c8b6ff;</code> a <code>--primary: #2f9e44;</code>, ¿qué pasará?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Nada, hay que cambiar también todas las cards a mano.</button>
+    <button class="quiz-opcion" data-correcta="1">Cualquier sitio que use <code>var(--primary)</code> se volverá verde (bordes, focus, etc.).</button>
+    <button class="quiz-opcion" data-correcta="0">Sólo afecta a las páginas que importen <code>theme.css</code> de nuevo.</button>
+    <button class="quiz-opcion" data-correcta="0">Da error porque <code>--primary</code> está reservada.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Eso es. Pruébalo: cambia la variable y la barra de los títulos cambia." data-ko="La gracia de las variables CSS es que propagan el cambio automáticamente."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
+  <p class="quiz-pregunta">¿Qué significa <code>&lt;Col md={6} className="d-none d-md-block"&gt;</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Ocupa 6 columnas en móvil y se oculta en escritorio.</button>
+    <button class="quiz-opcion" data-correcta="1">Se oculta en móvil y, a partir de tablet (md), se muestra como bloque y ocupa 6/12.</button>
+    <button class="quiz-opcion" data-correcta="0">Ocupa exactamente 6 píxeles en md.</button>
+    <button class="quiz-opcion" data-correcta="0">Es responsive con 6 columnas siempre.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Justo. d-none oculta; d-md-block re-muestra cuando se llega a md." data-ko="Las clases responsive de Bootstrap se acumulan: la última que aplica gana."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 3</div>
+  <p class="quiz-pregunta">¿Qué hace <code>repeat(auto-fill, minmax(16rem, 1fr))</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Crea 16 columnas siempre.</button>
+    <button class="quiz-opcion" data-correcta="1">Mete tantas columnas como quepan, cada una de al menos 16rem y máximo 1 fracción del espacio sobrante.</button>
+    <button class="quiz-opcion" data-correcta="0">Repite la primera columna 16 veces.</button>
+    <button class="quiz-opcion" data-correcta="0">Es un selector inválido.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Bien. Esto reemplaza varias media queries con una sola línea." data-ko="auto-fill: cuantas quepan; minmax(min, max): rango admitido por columna."></p>
+</div>
+
+<h2>10. Ejercicios sobre el proyecto</h2>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 1</span>
+    <span>Cambiar el color primario del tema</span>
+    <span class="nivel">★ Muy fácil</span>
+  </div>
+  <ol>
+    <li>Abre <code>src/theme.css</code>.</li>
+    <li>Cambia <code>--primary</code> de <code>#c8b6ff</code> (lavanda) a <code>#1971c2</code> (azul) o a un color que te guste.</li>
+    <li>Mira la web: la barra de los títulos, los focus de inputs y los botones lavanda cambian.</li>
+  </ol>
+  <details>
+    <summary>Si quieres ir más lejos</summary>
+    <p>Cambia también <code>--ink</code> (texto principal) y <code>--mauve-2</code> (usado en el hero) para reescribir toda la paleta.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 2</span>
+    <span>Modificar la grid de productos</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>En <code>src/pages/Productos.css</code> cambia <code>minmax(16rem, 1fr)</code> por <code>minmax(12rem, 1fr)</code>. Recarga <code>/productos</code> y observa: caben más tarjetas por fila porque ahora el mínimo es menor.</p>
+  <details>
+    <summary>Variante</summary>
+    <p>Prueba con <code>minmax(22rem, 1fr)</code>: las tarjetas son más anchas y caben menos. Esta sola línea sustituye varias media queries.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 3</span>
+    <span>Añadir un breakpoint para tablet</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Añade en <code>Productos.css</code> una regla que muestre exactamente 2 columnas entre 576px y 768px:</p>
+<pre><code class="language-css">@media (min-width: 577px) and (max-width: 768px) {
+  .productos-grid { grid-template-columns: repeat(2, 1fr); }
+}</code></pre>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 4</span>
+    <span>Crear una nueva clase utility</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>Imagina que quieres una clase <code>.btn-peri</code> idéntica a <code>.btn-lav</code> pero en color periwinkle. Defínela en <code>theme.css</code>:</p>
+<pre><code class="language-css">.btn-peri {
+  background: var(--periwinkle);
+  border: none;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 500;
+  transition: background var(--transition);
+}
+.btn-peri:hover { background: var(--periwinkle-2); }</code></pre>
+  <p>Y úsala donde quieras: <code>&lt;button className="btn btn-peri"&gt;Acción&lt;/button&gt;</code>.</p>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 5</span>
+    <span>Modo oscuro casero</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>Añade al final de <code>theme.css</code>:</p>
+<pre><code class="language-css">@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1a1727;
+    --surface-soft: #2a2440;
+    --ink: #f6f4fb;
+    --ink-soft: #c8b6ff;
+  }
+}</code></pre>
+  <p>Si tu sistema operativo está en modo oscuro, la web debería invertir colores. Si no, cambia temporalmente el modo del sistema o sustituye <code>@media</code> por un selector como <code>:root[data-tema="oscuro"]</code> y alterna el atributo con JavaScript.</p>
+</div>
+`;

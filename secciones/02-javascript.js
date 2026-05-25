@@ -1,0 +1,480 @@
+window.__SECC = window.__SECC || {};
+window.__SECC["javascript"] = `<h1>JavaScript moderno (ES6+)</h1>
+<p class="subtitulo">Las características del lenguaje que verás en cada fichero del proyecto.</p>
+
+<p class="lead">React y todo el código de DaWeb usa la sintaxis moderna de JavaScript (la que llaman ES6+, ES2015 en adelante). En esta sección verás <strong>todas</strong> las construcciones que aparecen en el proyecto, con ejemplos extraídos del código real para que en la entrevista las reconozcas al vuelo.</p>
+
+<h2>1. Variables: <code>const</code> y <code>let</code></h2>
+<p>Hay tres formas de declarar variables: <code>var</code> (antigua, no usar), <code>let</code> (variable normal) y <code>const</code> (variable que no se reasigna).</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4><code>const</code></h4>
+    <p>La referencia no cambia. Por defecto siempre usa <code>const</code>.</p>
+<pre><code class="language-js">const API_BASE = '/api';
+const TAMANYO_PAGINA = 9;</code></pre>
+  </div>
+  <div class="tarjeta">
+    <h4><code>let</code></h4>
+    <p>Cuando sí necesitas reasignar.</p>
+<pre><code class="language-js">let url = \`\${API_BASE}\${path}\`;
+if (query) url += \`?\${qs}\`;</code></pre>
+  </div>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Cuidado</div>
+  <p><code>const</code> impide reasignar la <em>referencia</em>, pero no impide modificar el contenido de un objeto o array. <code>const a = []; a.push(1);</code> es válido.</p>
+</div>
+
+<h2>2. Arrow functions <code>=&gt;</code></h2>
+<p>Sintaxis corta para funciones. Aparece en todo el proyecto.</p>
+
+<div class="tabs">
+  <div class="tabs-cabecera">
+    <button class="activa">Función clásica</button>
+    <button>Arrow function</button>
+    <button>Real del proyecto</button>
+  </div>
+  <div class="tabs-contenido">
+    <div class="tabs-panel activa">
+<pre><code class="language-js">function suma(a, b) {
+  return a + b;
+}</code></pre>
+    </div>
+    <div class="tabs-panel">
+<pre><code class="language-js">// Igual de potente, más corta
+const suma = (a, b) =&gt; a + b;
+
+// Con cuerpo en bloque
+const suma2 = (a, b) =&gt; {
+  const r = a + b;
+  return r;
+};</code></pre>
+    </div>
+    <div class="tabs-panel">
+<pre><code class="language-js">// src/api/usuarios.js
+export const crearUsuario = (datos) =&gt;
+  request('/usuarios', { method: 'POST', body: datos });
+
+export const obtenerUsuario = (id) =&gt; request(\`/usuarios/\${id}\`);</code></pre>
+    </div>
+  </div>
+</div>
+
+<h3>Diferencia clave: el <code>this</code></h3>
+<p>Las arrow functions <strong>no tienen su propio <code>this</code></strong>: heredan el del entorno. Por eso son más seguras en callbacks. En React funcional apenas se usa <code>this</code>, así que esto rara vez te morderá.</p>
+
+<h2>3. Template literals (backticks)</h2>
+<p>Strings con interpolación usando <code>\`</code> y <code>\${}</code>.</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/api/client.js</span>
+<pre><code class="language-js">let url = \`\${API_BASE}\${path}\`;
+if (qs) url += \`?\${qs}\`;
+const error = new Error(
+  \`Error \${respuesta.status} en \${method} \${path}\`
+);</code></pre>
+</div>
+
+<p>Equivale a:</p>
+<div class="code-wrap">
+  <span class="file-label">equivalente sin template</span>
+<pre><code class="language-js">var url = API_BASE + path;
+if (qs) url += '?' + qs;
+var error = new Error('Error ' + respuesta.status + ' en ' + method + ' ' + path);</code></pre>
+</div>
+
+<h2>4. Destructuring</h2>
+<p>Sacar propiedades de un objeto en variables con una sintaxis corta. Está en TODAS partes.</p>
+
+<div class="tabs">
+  <div class="tabs-cabecera">
+    <button class="activa">Objetos</button>
+    <button>Arrays</button>
+    <button>En argumentos</button>
+    <button>Real del proyecto</button>
+  </div>
+  <div class="tabs-contenido">
+    <div class="tabs-panel activa">
+<pre><code class="language-js">const persona = { nombre: 'Ana', edad: 30 };
+const { nombre, edad } = persona;
+console.log(nombre); // 'Ana'
+
+// Renombrando
+const { nombre: n } = persona;
+
+// Con valor por defecto
+const { ciudad = 'Murcia' } = persona;</code></pre>
+    </div>
+    <div class="tabs-panel">
+<pre><code class="language-js">const colores = ['rojo', 'verde', 'azul'];
+const [primero, , tercero] = colores;
+console.log(primero); // 'rojo'</code></pre>
+    </div>
+    <div class="tabs-panel">
+<pre><code class="language-js">// Función que recibe un objeto con opciones
+function pedir({ method = 'GET', body } = {}) {
+  console.log(method, body);
+}
+pedir({ method: 'POST', body: { x: 1 } });</code></pre>
+    </div>
+    <div class="tabs-panel">
+<pre><code class="language-js">// src/api/client.js
+export const request = async (
+  path,
+  { method = 'GET', body, headers = {}, query, returnLocation = false } = {}
+) =&gt; { ... };
+
+// src/context/AuthContext.jsx
+const { id: idCreado } = await productosApi.crearProducto({ ... });
+
+// src/components/RutaProtegida.jsx
+function RutaProtegida({ children, soloAdmin = false }) {
+  const { usuario, esAdmin } = useAuth();
+  ...
+}</code></pre>
+    </div>
+  </div>
+</div>
+
+<h2>5. Spread <code>...</code> y rest <code>...</code></h2>
+<p>Los tres puntos sirven para dos cosas opuestas dependiendo del contexto.</p>
+
+<h3>Spread: <em>expandir</em></h3>
+<div class="code-wrap">
+  <span class="file-label">ejemplos</span>
+<pre><code class="language-js">// Combinar arrays
+const a = [1, 2];
+const b = [...a, 3, 4]; // [1, 2, 3, 4]
+
+// Copiar y modificar objetos (¡muy importante en React!)
+const persona = { nombre: 'Ana', edad: 30 };
+const mayor = { ...persona, edad: 31 };
+// { nombre: 'Ana', edad: 31 }
+
+// Mezclar opciones por defecto con overrides
+const opciones = { ...defaults, ...sobreescrituras };</code></pre>
+</div>
+
+<div class="code-wrap">
+  <span class="file-label">src/api/client.js — uso real</span>
+<pre><code class="language-js">const opciones = {
+  method,
+  headers: {
+    Accept: 'application/json',
+    ...(body ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: \`Bearer \${token}\` } : {}),
+    ...headers,
+  },
+};</code></pre>
+</div>
+
+<h3>Rest: <em>agrupar</em></h3>
+<div class="code-wrap">
+  <span class="file-label">ejemplos</span>
+<pre><code class="language-js">function suma(...nums) {
+  return nums.reduce((a, b) =&gt; a + b, 0);
+}
+suma(1, 2, 3, 4); // 10
+
+const { id, ...resto } = { id: 1, nombre: 'Ana', edad: 30 };
+// resto = { nombre: 'Ana', edad: 30 }</code></pre>
+</div>
+
+<h2>6. Módulos: <code>import</code> / <code>export</code></h2>
+<p>Cada fichero <code>.js</code>/<code>.jsx</code> es un <strong>módulo independiente</strong>. Para usar algo de otro fichero hay que <em>exportarlo</em> allí e <em>importarlo</em> aquí.</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Export <em>named</em></h4>
+    <p>Cualquier número de exports por nombre.</p>
+<pre><code class="language-js">// math.js
+export const PI = 3.14;
+export function suma(a, b) { return a + b; }
+
+// otra.js
+import { PI, suma } from './math';</code></pre>
+  </div>
+  <div class="tarjeta">
+    <h4>Export <em>default</em></h4>
+    <p>Sólo uno por fichero. Lo importas con cualquier nombre.</p>
+<pre><code class="language-js">// Saludo.jsx
+export default function Saludo() { return &lt;p&gt;Hola&lt;/p&gt;; }
+
+// App.jsx
+import Saludo from './Saludo';   // sin llaves</code></pre>
+  </div>
+</div>
+
+<h3>Variantes que verás</h3>
+<div class="code-wrap">
+  <span class="file-label">ejemplos del proyecto</span>
+<pre><code class="language-js">// src/pages/Productos.jsx
+import { useEffect, useState } from 'react';           // named de paquete npm
+import { useSearchParams, Link } from 'react-router-dom';
+import { Container, Row, Col } from 'react-bootstrap';
+import * as productosApi from '../api/productos';      // ⭐ importa TODO como namespace
+import * as categoriasApi from '../api/categorias';
+import ProductoCard from '../components/ProductoCard'; // default sin llaves
+import './Productos.css';                              // efecto secundario (no variable)</code></pre>
+</div>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> El truco del <code>import * as</code></div>
+  <p>Cuando un módulo exporta muchas funciones (como <code>api/productos.js</code>), se importa todo bajo un alias para no llenar el fichero de imports. Luego se usa <code>productosApi.listarProductos(...)</code>, <code>productosApi.crearProducto(...)</code>, etc.</p>
+</div>
+
+<h2>7. Promesas y <code>async</code> / <code>await</code></h2>
+<p>Las operaciones que tardan (peticiones HTTP, leer archivos…) son <strong>asíncronas</strong>: no devuelven el resultado al instante, sino una <strong>Promesa</strong> que se "cumplirá" más tarde.</p>
+
+<h3>Con <code>.then()</code> y <code>.catch()</code></h3>
+<div class="code-wrap">
+  <span class="file-label">src/pages/Productos.jsx — fragmento</span>
+<pre><code class="language-js">productosApi
+  .listarProductos({ ...filtros, page, size: TAMANYO_PAGINA })
+  .then((res) =&gt; {
+    setProductos(desempaquetar(res, 'productoList'));
+    setTotalPaginas(totalPaginasRes(res));
+  })
+  .catch((err) =&gt; setError(err.message))
+  .finally(() =&gt; setCargando(false));</code></pre>
+</div>
+
+<h3>Con <code>async</code>/<code>await</code> (más legible)</h3>
+<div class="code-wrap">
+  <span class="file-label">src/pages/DetalleProducto.jsx — fragmento</span>
+<pre><code class="language-js">const comprar = async () =&gt; {
+  if (!usuario) {
+    navegar('/login');
+    return;
+  }
+  try {
+    await compraventasApi.crearCompraventa({
+      idProducto: producto.id,
+      idComprador: usuario.id,
+    });
+    setMensaje('¡Compra solicitada con éxito!');
+    const refrescado = await productosApi.obtenerProducto(id);
+    setProducto(refrescado);
+  } catch (err) {
+    setError(err.message);
+  }
+};</code></pre>
+</div>
+
+<h3>Reglas</h3>
+<ol>
+  <li>Una función marcada con <code>async</code> SIEMPRE devuelve una Promesa.</li>
+  <li><code>await</code> sólo se puede usar dentro de una función <code>async</code>.</li>
+  <li><code>await pX</code> "pausa" la función hasta que la promesa se resuelva.</li>
+  <li>Errores: envuelve en <code>try / catch</code> o encadena <code>.catch(...)</code>.</li>
+</ol>
+
+<h2>8. Optional chaining <code>?.</code> y nullish coalescing <code>??</code></h2>
+
+<h3><code>?.</code> — "si no es null/undefined, accede"</h3>
+<div class="code-wrap">
+  <span class="file-label">src/components/ProductoCard.jsx</span>
+<pre><code class="language-js">{producto.lugarDeRecogida?.recogida &amp;&amp; \` · \${producto.lugarDeRecogida.recogida}\`}
+// si lugarDeRecogida es undefined o null, NO da error. Devuelve undefined.</code></pre>
+</div>
+
+<h3><code>??</code> — "si es null/undefined, usa el valor por defecto"</h3>
+<div class="code-wrap">
+  <span class="file-label">src/api/util.js</span>
+<pre><code class="language-js">export const totalPaginas = (res) =&gt; res?.page?.totalPages ?? 1;</code></pre>
+</div>
+<p>Distinto de <code>||</code>: <code>0 || 5</code> da 5, pero <code>0 ?? 5</code> da 0. <code>??</code> sólo "cae" con null/undefined.</p>
+
+<h2>9. Métodos de array que verás constantemente</h2>
+<table>
+  <tr><th>Método</th><th>Qué hace</th><th>Dónde aparece en DaWeb</th></tr>
+  <tr><td><code>.map(fn)</code></td><td>Transforma cada elemento devolviendo uno nuevo.</td><td>Listas de productos, usuarios, opciones.</td></tr>
+  <tr><td><code>.filter(fn)</code></td><td>Devuelve los que cumplen la condición.</td><td><code>PerfilProductos</code>: filtrar productos por vendedor.</td></tr>
+  <tr><td><code>.find(fn)</code></td><td>Devuelve el PRIMERO que cumple.</td><td>Búsquedas puntuales.</td></tr>
+  <tr><td><code>.slice(a, b)</code></td><td>Corta un trozo.</td><td>Paginación local.</td></tr>
+  <tr><td><code>.forEach(fn)</code></td><td>Itera (no devuelve).</td><td>Construir query strings.</td></tr>
+</table>
+
+<div class="code-wrap">
+  <span class="file-label">ejemplo: .map en JSX</span>
+<pre><code class="language-jsx">{productos.map((p) =&gt; (
+  &lt;ProductoCard key={p.id} producto={p} /&gt;
+))}</code></pre>
+</div>
+
+<h2>10. <code>JSON.parse</code> / <code>JSON.stringify</code></h2>
+<p>Convertir entre objeto JavaScript y string JSON. Lo usa el cliente HTTP del proyecto.</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/api/client.js — fragmento</span>
+<pre><code class="language-js">if (body !== undefined) opciones.body = JSON.stringify(body);
+// ...
+const datos = texto ? safeJson(texto) : null;
+// safeJson hace JSON.parse rodeado de try/catch</code></pre>
+</div>
+
+<h2>11. Playground: prueba tú</h2>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Destructuring + spread</div>
+  <textarea spellcheck="false">const usuario = { id: 1, nombre: 'Ana', roles: ['USER'] };
+
+// Destructuring
+const { nombre, roles } = usuario;
+console.log('Hola', nombre, 'con roles', roles);
+
+// Spread: añadir campo sin mutar
+const conAdmin = { ...usuario, roles: [...roles, 'ADMIN'] };
+console.log('Original sin tocar:', usuario);
+console.log('Nuevo:', conAdmin);</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> async/await + Promesas</div>
+  <textarea spellcheck="false">function esperar(ms) {
+  return new Promise(r =&gt; setTimeout(r, ms));
+}
+
+async function flujo() {
+  console.log('Empieza');
+  await esperar(500);
+  console.log('Han pasado 500 ms');
+  await esperar(500);
+  console.log('Han pasado 1000 ms');
+  return 'listo';
+}
+
+flujo().then(r =&gt; console.log('Resultado:', r));</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Optional chaining y nullish</div>
+  <textarea spellcheck="false">const producto = { titulo: 'Bici', precio: 100 };
+
+// Sin ?. esto rompe:
+// console.log(producto.lugarDeRecogida.descripcion);
+
+console.log('Con ?. :', producto.lugarDeRecogida?.descripcion);
+console.log('Con ?? :', producto.envio ?? 'no especificado');
+console.log('Cuidado con || :', producto.precio || 'gratis');   // 100
+console.log('Y con ?? :', producto.precio ?? 'gratis');        // 100
+console.log('Diferencia con 0:', 0 || 'cero', '/', 0 ?? 'cero');</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>
+
+<h2>12. Quiz</h2>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
+  <p class="quiz-pregunta">¿Qué imprime esto?<br><code>const o = { a: 1 }; const o2 = { ...o, a: 2 }; console.log(o.a, o2.a);</code></p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="1">1 2</button>
+    <button class="quiz-opcion" data-correcta="0">2 2</button>
+    <button class="quiz-opcion" data-correcta="0">Error: no se puede redeclarar <code>a</code></button>
+    <button class="quiz-opcion" data-correcta="0">undefined 2</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Correcto. Spread crea un objeto NUEVO; el original no se toca." data-ko="Spread no muta el origen. Crea una copia y luego sobrescribe la propiedad."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
+  <p class="quiz-pregunta">¿Por qué <code>await</code> aparece dentro de funciones marcadas como <code>async</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Por convención únicamente.</button>
+    <button class="quiz-opcion" data-correcta="1">Porque <code>await</code> es sintaxis sólo válida dentro de funciones <code>async</code>.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque <code>async</code> habilita el modo estricto.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque sin <code>async</code> la función bloquea el navegador.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Exacto. Es un requisito del lenguaje." data-ko="Fuera de async, await da SyntaxError (excepto en top-level de un módulo)."></p>
+</div>
+
+<h2>13. Ejercicios sobre el proyecto</h2>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 1</span>
+    <span>Reescribir una arrow a función clásica</span>
+    <span class="nivel">★ Fácil</span>
+  </div>
+  <ol>
+    <li>Abre <code>src/api/usuarios.js</code>.</li>
+    <li>Reescribe <code>crearUsuario</code> usando <code>function</code> en lugar de arrow.</li>
+    <li>Comprueba que el registro sigue funcionando.</li>
+  </ol>
+  <details>
+    <summary>Solución</summary>
+<pre><code class="language-js">export function crearUsuario(datos) {
+  return request('/usuarios', { method: 'POST', body: datos });
+}</code></pre>
+    <p>Funciona porque no usa <code>this</code> ni nada que cambie entre las dos formas.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 2</span>
+    <span>Detectar destructuring en una página</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Abre <code>src/pages/DetalleProducto.jsx</code> y localiza:</p>
+  <ol>
+    <li>Una desestructuración de <code>useParams()</code>.</li>
+    <li>Una desestructuración del contexto <code>useAuth()</code>.</li>
+    <li>Un uso de <code>?.</code> sobre una propiedad anidada.</li>
+  </ol>
+  <details>
+    <summary>Respuestas</summary>
+    <ul>
+      <li><code>const { id } = useParams();</code></li>
+      <li><code>const { usuario } = useAuth();</code></li>
+      <li><code>producto.vendedor?.id === usuario.id</code></li>
+    </ul>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 3</span>
+    <span>Pasar <code>.then</code> a <code>async/await</code></span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>En <code>src/pages/Productos.jsx</code>, la carga inicial de categorías es:</p>
+<pre><code class="language-js">useEffect(() =&gt; {
+  categoriasApi.listarCategoriasRaiz()
+    .then((lista) =&gt; setCategorias(lista ?? []))
+    .catch(() =&gt; setCategorias([]));
+}, []);</code></pre>
+  <p>Reescríbelo dentro de una función async interna. Comprueba que sigue funcionando.</p>
+  <details>
+    <summary>Solución</summary>
+<pre><code class="language-js">useEffect(() =&gt; {
+  const cargar = async () =&gt; {
+    try {
+      const lista = await categoriasApi.listarCategoriasRaiz();
+      setCategorias(lista ?? []);
+    } catch {
+      setCategorias([]);
+    }
+  };
+  cargar();
+}, []);</code></pre>
+    <p>Nota: el callback de <code>useEffect</code> NO puede ser async directamente (debe devolver una función de limpieza o undefined, no una Promesa). Por eso definimos una función interna y la llamamos.</p>
+  </details>
+</div>
+`;

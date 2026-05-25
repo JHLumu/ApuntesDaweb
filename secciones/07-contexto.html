@@ -1,0 +1,434 @@
+<h1>Context y autenticación</h1>
+<p class="subtitulo">Cómo se comparte el estado del usuario logueado entre TODAS las páginas.</p>
+
+<p class="lead">Cuando hay 15 páginas y todas necesitan saber "¿hay usuario logueado? ¿es admin?", pasar esa info como props sería un infierno. Para eso existe el <strong>Context API</strong> de React: un "almacén" global accesible desde cualquier componente. En DaWeb el contexto guarda el usuario actual y todas las acciones de login/logout/registro. En esta sección lo desmenuzas completo.</p>
+
+<h2>1. El problema que resuelve Context</h2>
+<p>Imagina esta jerarquía:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> <code>App</code> sabe quién es el usuario.</div>
+  <div class="flujo-paso"><span class="num">2</span> <code>App</code> renderiza <code>Layout</code>.</div>
+  <div class="flujo-paso"><span class="num">3</span> <code>Layout</code> renderiza <code>Header</code>.</div>
+  <div class="flujo-paso"><span class="num">4</span> <code>Header</code> necesita el usuario para mostrar el nombre.</div>
+</div>
+
+<p>Pasarlo como prop por toda la cadena se llama <strong>prop drilling</strong> y es tedioso. Context permite a cualquier nivel de la cadena leer datos sin que los intermedios sepan nada.</p>
+
+<h2>2. Las tres piezas de un Context</h2>
+
+<table>
+  <tr><th>Pieza</th><th>Qué hace</th><th>En DaWeb</th></tr>
+  <tr><td><code>createContext(...)</code></td><td>Crea el "canal" para distribuir datos.</td><td><code>AuthContext</code> en <code>context/useAuth.js</code></td></tr>
+  <tr><td><code>&lt;Context.Provider value={...}&gt;</code></td><td>Componente que <em>provee</em> los datos a sus hijos.</td><td><code>AuthProvider</code> en <code>context/AuthContext.jsx</code></td></tr>
+  <tr><td><code>useContext(Context)</code></td><td>Hook que lee los datos.</td><td><code>useAuth()</code> en <code>context/useAuth.js</code></td></tr>
+</table>
+
+<h2>3. <code>context/useAuth.js</code> — la definición</h2>
+
+<div class="code-wrap">
+  <span class="file-label">src/context/useAuth.js</span>
+<pre><code class="language-jsx">import { createContext, useContext } from 'react';
+
+export const AuthContext = createContext(null);
+
+export const useAuth = () =&gt; useContext(AuthContext);</code></pre>
+</div>
+
+<p>Sólo 3 líneas:</p>
+<ul>
+  <li>Crea un contexto con valor inicial <code>null</code>.</li>
+  <li>Define un hook personalizado <code>useAuth</code> que es atajo para <code>useContext(AuthContext)</code>.</li>
+</ul>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Hook personalizado</div>
+  <p>Cualquier función que empieza por <code>use</code> y llama a otros hooks es un "custom hook". Es la forma idiomática de reutilizar lógica entre componentes.</p>
+</div>
+
+<h2>4. <code>context/AuthContext.jsx</code> — el proveedor</h2>
+
+<div class="code-wrap">
+  <span class="file-label">src/context/AuthContext.jsx</span>
+<pre><code class="language-jsx">import { useState } from 'react';
+import * as authApi from '../api/auth';
+import * as usuariosApi from '../api/usuarios';
+import { getToken, setToken, clearToken, decodeJwt } from '../api/client';
+import { AuthContext } from './useAuth';
+
+const usuarioDesdeToken = () =&gt; {
+  const token = getToken();
+  if (!token) return null;
+  const claims = decodeJwt(token);
+  if (!claims || (claims.exp &amp;&amp; claims.exp * 1000 &lt; Date.now())) {
+    clearToken();
+    return null;
+  }
+  return {
+    id: claims.sub,
+    nombre: claims.nombre,
+    apellidos: claims.apellidos,
+    roles: claims.roles ?? [],
+  };
+};
+
+export const AuthProvider = ({ children }) =&gt; {
+  const [usuario, setUsuario] = useState(usuarioDesdeToken);
+
+  const login = async (correo, clave) =&gt; {
+    try {
+      await authApi.login(correo, clave);
+      const u = usuarioDesdeToken();
+      setUsuario(u);
+      return { ok: true, usuario: u };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const aceptarToken = (token) =&gt; {
+    setToken(token);
+    const u = usuarioDesdeToken();
+    setUsuario(u);
+    return u;
+  };
+
+  const logout = () =&gt; {
+    authApi.logout();
+    setUsuario(null);
+  };
+
+  const registrar = async (datos) =&gt; {
+    try {
+      await usuariosApi.crearUsuario(datos);
+      return await login(datos.correo, datos.clave);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const actualizarPerfil = async (cambios) =&gt; {
+    if (!usuario) return { ok: false, error: 'No hay sesión' };
+    try {
+      await usuariosApi.actualizarUsuario(usuario.id, cambios);
+      setUsuario({ ...usuario, ...cambios });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const esAdmin = (usuario?.roles ?? []).includes('ADMINISTRADOR');
+
+  return (
+    &lt;AuthContext.Provider
+      value={{
+        usuario, esAdmin,
+        login, logout, registrar,
+        actualizarPerfil, aceptarToken,
+      }}
+    &gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};</code></pre>
+</div>
+
+<h3>Lectura paso a paso</h3>
+<ol>
+  <li><strong><code>usuarioDesdeToken()</code></strong>: función pura. Lee el token de localStorage, lo decodifica y devuelve un objeto usuario (o <code>null</code> si caducó o no existe).</li>
+  <li><strong><code>useState(usuarioDesdeToken)</code></strong>: arranca el estado con el resultado de esa función. Pasamos la <em>referencia</em>, no su llamada, para que React la ejecute una sola vez (initialización perezosa).</li>
+  <li><strong><code>login(correo, clave)</code></strong>: llama a la API, si OK actualiza el estado con el usuario decodificado del nuevo token, y devuelve <code>{ ok: true }</code>. Si falla, devuelve <code>{ ok: false, error: ... }</code>.</li>
+  <li><strong><code>aceptarToken(token)</code></strong>: alternativa para login con OAuth (GitHub): el token llega ya hecho, sólo lo guardamos y actualizamos estado.</li>
+  <li><strong><code>logout()</code></strong>: borra el token de localStorage y pone <code>usuario = null</code>.</li>
+  <li><strong><code>registrar(datos)</code></strong>: crea el usuario y, si va bien, hace login automático.</li>
+  <li><strong><code>actualizarPerfil(cambios)</code></strong>: PATCH al backend y refresca el estado local.</li>
+  <li><strong><code>esAdmin</code></strong>: derivado del array de roles.</li>
+  <li><strong><code>&lt;AuthContext.Provider value={{ ... }}&gt;</code></strong>: expone todo en el contexto.</li>
+</ol>
+
+<h2>5. Cómo se cuelga el provider en la app</h2>
+
+<div class="code-wrap">
+  <span class="file-label">src/App.jsx</span>
+<pre><code class="language-jsx">function App() {
+  return (
+    &lt;AuthProvider&gt;
+      &lt;BrowserRouter&gt;
+        &lt;Layout /&gt;
+      &lt;/BrowserRouter&gt;
+    &lt;/AuthProvider&gt;
+  );
+}</code></pre>
+</div>
+
+<p>Al envolver toda la app, cualquier componente descendiente puede usar <code>useAuth()</code> y leer/modificar el estado de sesión.</p>
+
+<h2>6. Uso desde una página</h2>
+
+<div class="code-wrap">
+  <span class="file-label">src/components/Header.jsx</span>
+<pre><code class="language-jsx">import { useAuth } from '../context/useAuth';
+
+function Header() {
+  const { usuario, esAdmin, logout } = useAuth();
+  const navegar = useNavigate();
+
+  const salir = () =&gt; {
+    logout();
+    navegar('/');
+  };
+  // ...
+  return (
+    &lt;nav&gt;
+      {esAdmin &amp;&amp; &lt;NavLink to="/admin/usuarios"&gt;Usuarios&lt;/NavLink&gt;}
+      {usuario
+        ? &lt;button onClick={salir}&gt;Salir&lt;/button&gt;
+        : &lt;Link to="/login"&gt;Iniciar sesión&lt;/Link&gt;}
+    &lt;/nav&gt;
+  );
+}</code></pre>
+</div>
+
+<h2>7. JWT: qué es y cómo se decodifica</h2>
+<p>Un <strong>JWT (JSON Web Token)</strong> es un string formado por tres partes separadas por puntos:</p>
+
+<div class="code-wrap">
+  <span class="file-label">estructura de un JWT</span>
+<pre><code class="language-text">eyJhbGciOi...   .   eyJzdWIiOiI...   .   3Rk2...
+   header             payload              firma</code></pre>
+</div>
+
+<ul>
+  <li><strong>Header</strong>: algoritmo de firma.</li>
+  <li><strong>Payload</strong>: los datos (id, nombre, roles, exp = fecha de caducidad).</li>
+  <li><strong>Firma</strong>: garantiza que el backend lo creó (sólo el backend puede generar uno válido).</li>
+</ul>
+
+<p>El proyecto decodifica el payload sin validar la firma (no necesita; sólo lee datos). El cliente confía en que si el backend lo aceptó, está bien:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/api/client.js</span>
+<pre><code class="language-jsx">export const decodeJwt = (token) =&gt; {
+  try {
+    const payload = token.split('.')[1];                          // segundo trozo
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};</code></pre>
+</div>
+
+<ul>
+  <li><code>token.split('.')[1]</code>: coge el payload.</li>
+  <li><code>atob(...)</code>: decodifica de Base64.</li>
+  <li>El reemplazo <code>-/_</code> a <code>+/</code> es porque JWT usa Base64URL, una variante.</li>
+  <li><code>JSON.parse</code>: lo convierte en objeto JS.</li>
+</ul>
+
+<h3>Campos del payload (claims) que usa DaWeb</h3>
+<table>
+  <tr><th>Claim</th><th>Significado</th></tr>
+  <tr><td><code>sub</code></td><td>"subject": id del usuario</td></tr>
+  <tr><td><code>nombre</code></td><td>nombre del usuario</td></tr>
+  <tr><td><code>apellidos</code></td><td>apellidos del usuario</td></tr>
+  <tr><td><code>roles</code></td><td>array de roles (p. ej. <code>["USUARIO"]</code> o <code>["USUARIO", "ADMINISTRADOR"]</code>)</td></tr>
+  <tr><td><code>exp</code></td><td>fecha de caducidad en SEGUNDOS desde el epoch</td></tr>
+</table>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> exp en segundos, JS en ms</div>
+  <p><code>exp * 1000 &lt; Date.now()</code>: multiplicamos por 1000 porque JS trabaja en milisegundos. Si caducó, borramos el token.</p>
+</div>
+
+<h2>8. Login tradicional (correo + clave)</h2>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Usuario rellena el formulario y pulsa "Iniciar sesión".</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> <code>Login.jsx</code> llama a <code>login(correo, clave)</code> del contexto.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> El contexto llama a <code>authApi.login(...)</code> que hace <code>POST /api/auth/login</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> El backend valida y devuelve <code>{ token: "eyJ..." }</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">5</span> <code>auth.js</code> guarda el token con <code>setToken(token)</code> (en localStorage).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">6</span> El contexto decodifica el token y actualiza <code>usuario</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">7</span> Toda la app re-renderiza: aparece el nombre en el header, etc.</div>
+</div>
+
+<h2>9. Login con GitHub (OAuth2)</h2>
+<p>El proyecto soporta también login con GitHub. Aquí el flujo es más complejo porque GitHub está fuera del dominio.</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/Login.jsx — fragmento de loginConGithub</span>
+<pre><code class="language-jsx">const loginConGithub = () =&gt; {
+  const popup = window.open(
+    '/oauth2/authorization/github',
+    'github-oauth',
+    `width=${ancho},height=${alto},left=${x},top=${y}`
+  );
+
+  intervaloRef.current = setInterval(() =&gt; {
+    if (popup.closed) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+      return;
+    }
+    let ruta;
+    try { ruta = popup.location.pathname; } catch { return; }
+    if (!ruta || !ruta.startsWith('/login/oauth2/code/')) return;
+
+    clearInterval(intervaloRef.current);
+    const texto = popup.document.body.innerText || '';
+    popup.close();
+    const datos = JSON.parse(texto);
+    if (datos.token) {
+      aceptarToken(datos.token);
+      navegar('/');
+    }
+  }, 400);
+};</code></pre>
+</div>
+
+<h3>Por qué un popup y un setInterval</h3>
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Se abre un popup que va al backend a <code>/oauth2/authorization/github</code>.</div>
+  <div class="flujo-paso"><span class="num">2</span> El backend redirige al popup a GitHub para autenticar.</div>
+  <div class="flujo-paso"><span class="num">3</span> El usuario autoriza en GitHub y GitHub redirige de vuelta al backend.</div>
+  <div class="flujo-paso"><span class="num">4</span> El backend, en la URL <code>/login/oauth2/code/github</code>, escribe un JSON con el token.</div>
+  <div class="flujo-paso"><span class="num">5</span> El intervalo (cada 400ms) detecta que el popup ya está en esa URL.</div>
+  <div class="flujo-paso"><span class="num">6</span> Lee el JSON del popup, llama a <code>aceptarToken</code> y cierra el popup.</div>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> El try/catch al leer popup.location</div>
+  <p>Mientras el popup está en github.com, el navegador BLOQUEA el acceso (política de mismo origen). El try/catch atrapa esa excepción silenciosamente; el intervalo vuelve a intentar al cabo de 400ms. Cuando el popup vuelve a tu dominio (tras la redirección del backend), el acceso desbloquea y leemos la ruta.</p>
+</div>
+
+<h2>10. Quiz</h2>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
+  <p class="quiz-pregunta">¿Por qué <code>AuthProvider</code> está ENCIMA de <code>BrowserRouter</code> en App.jsx?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Por orden alfabético.</button>
+    <button class="quiz-opcion" data-correcta="1">Para que el contexto esté disponible también en rutas, redirecciones y guards.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque BrowserRouter no acepta hijos sin contexto.</button>
+    <button class="quiz-opcion" data-correcta="0">Para que el provider pueda navegar al iniciar.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Bien. Si lo invirtieras, las rutas no podrían usar useAuth." data-ko="Cualquier componente que use useAuth debe estar DENTRO del Provider."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
+  <p class="quiz-pregunta">Si cierro la pestaña y la vuelvo a abrir, ¿el usuario sigue logueado?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="1">Sí, porque <code>localStorage</code> persiste entre pestañas y cierres.</button>
+    <button class="quiz-opcion" data-correcta="0">No, el estado se borra siempre al cerrar.</button>
+    <button class="quiz-opcion" data-correcta="0">Sólo si la pestaña era privada.</button>
+    <button class="quiz-opcion" data-correcta="0">Sólo si pulsé "recordarme".</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Correcto. Hasta que el token caduque (exp) o llames a logout()." data-ko="El token está en localStorage; sobrevive a cierres. Sólo se borra si pasa el exp o llamas logout."></p>
+</div>
+
+<h2>11. Ejercicios</h2>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 1</span>
+    <span>Ver el token desde la consola</span>
+    <span class="nivel">★ Muy fácil</span>
+  </div>
+  <ol>
+    <li>Inicia sesión en la web.</li>
+    <li>Abre DevTools → Console.</li>
+    <li>Ejecuta: <code>localStorage.getItem('arso_token')</code>.</li>
+    <li>Copia el token y pégalo en <a href="https://jwt.io" target="_blank" rel="noopener">jwt.io</a> para ver el payload decodificado.</li>
+  </ol>
+  <details>
+    <summary>Qué deberías ver</summary>
+    <p>Campos como <code>sub</code> (id), <code>nombre</code>, <code>apellidos</code>, <code>roles</code> y <code>exp</code>.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 2</span>
+    <span>Forzar logout desde consola</span>
+    <span class="nivel">★ Fácil</span>
+  </div>
+  <ol>
+    <li>Con sesión iniciada, en la consola: <code>localStorage.removeItem('arso_token')</code>.</li>
+    <li>Recarga la página.</li>
+    <li>Verás que sales automáticamente.</li>
+  </ol>
+  <details>
+    <summary>Por qué</summary>
+    <p>Al cargar, <code>AuthProvider</code> llama a <code>usuarioDesdeToken()</code> que devuelve <code>null</code> si no hay token. El header detecta <code>usuario === null</code> y muestra el botón de "Iniciar sesión".</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 3</span>
+    <span>Añadir un campo nuevo al contexto</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Imagina que quieres exponer "el usuario tiene email verificado". Modifica <code>AuthContext.jsx</code>:</p>
+  <ol>
+    <li>En el cálculo de <code>usuarioDesdeToken</code>, añade <code>emailVerificado: claims.emailVerificado ?? false</code>.</li>
+    <li>Añade un <code>const emailVerificado = usuario?.emailVerificado ?? false;</code>.</li>
+    <li>Añade <code>emailVerificado</code> al value del Provider.</li>
+    <li>Úsalo en cualquier página: <code>const { emailVerificado } = useAuth();</code> y muestra un aviso si es false.</li>
+  </ol>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 4</span>
+    <span>Simular un token caducado</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>En consola, manipula el token para que parezca caducado:</p>
+<pre><code class="language-js">// 1) lee el token actual
+const t = localStorage.getItem('arso_token');
+// 2) parte y modifica el payload (cambia exp a 1)
+const [h, p, s] = t.split('.');
+const payload = JSON.parse(atob(p));
+payload.exp = 1;  // 1970
+const nuevoPayload = btoa(JSON.stringify(payload)).replace(/=+$/,'').replace(/\+/g, '-').replace(/\//g, '_');
+localStorage.setItem('arso_token', `${h}.${nuevoPayload}.${s}`);
+// 3) recarga la página</code></pre>
+  <details>
+    <summary>Resultado esperado</summary>
+    <p>Al recargar, <code>usuarioDesdeToken</code> detecta que <code>exp * 1000 &lt; Date.now()</code> y borra el token. Quedas deslogueado.</p>
+    <p>Aviso: el backend no aceptará este token modificado (la firma no coincide). Por eso es sólo una demo de la verificación en cliente.</p>
+  </details>
+</div>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Simular decodeJwt aquí mismo</div>
+  <textarea spellcheck="false">// Función igual a la del proyecto
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+// Un JWT de ejemplo (header.payload.signature — la firma es falsa, sólo decodificamos)
+const t = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiIsIm5vbWJyZSI6IkFuYSIsInJvbGVzIjpbIlVTVUFSSU8iXSwiZXhwIjoxOTAwMDAwMDAwfQ.x';
+console.log(decodeJwt(t));</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>

@@ -1,0 +1,726 @@
+<h1>Funcionalidades por página</h1>
+<p class="subtitulo">Recorrido completo: para cada página, qué hace, dónde está, qué APIs llama y cómo modificarla.</p>
+
+<p class="lead">Ésta es la sección de "consulta rápida" para la entrevista. Si te piden modificar una funcionalidad concreta, vienes aquí, localizas la página y tienes a mano código real, flujo, ejercicios y puntos de modificación. Incluye las 15 páginas de la aplicación.</p>
+
+<h2>Índice rápido</h2>
+<ul>
+  <li><a href="#home">Home</a></li>
+  <li><a href="#login">Login</a> y <a href="#registro">Registro</a></li>
+  <li><a href="#productos">Productos</a> (listado con filtros)</li>
+  <li><a href="#detalle">DetalleProducto</a></li>
+  <li><a href="#nuevo">NuevoProducto</a> y <a href="#editar">EditarProducto</a></li>
+  <li><a href="#perfil">Perfil</a> + <a href="#perfil-productos">PerfilProductos</a>, <a href="#perfil-ventas">PerfilVentas</a>, <a href="#perfil-compras">PerfilCompras</a></li>
+  <li><a href="#perfil-usuario">PerfilUsuario</a> (ver otro)</li>
+  <li><a href="#admin-usuarios">AdminUsuarios</a></li>
+  <li><a href="#admin-transacciones">AdminTransacciones</a></li>
+  <li><a href="#error">Error404</a></li>
+</ul>
+
+<!-- ───────── HOME ───────── -->
+<h2 id="home">Home — <code>src/pages/Home.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Página de bienvenida. Dos secciones:</p>
+<ol>
+  <li><strong>Hero</strong>: título grande, frase descriptiva y tres "estadísticas" decorativas (12.500+ usuarios, 50.000+ productos vendidos, 4,8/5 valoración).</li>
+  <li><strong>Segunda sección</strong>: texto sobre dar segunda vida + un marquee vertical infinito de imágenes de productos.</li>
+</ol>
+
+<h3>Implementación destacada</h3>
+<div class="code-wrap">
+  <span class="file-label">src/pages/Home.jsx — el marquee</span>
+<pre><code class="language-jsx">const BLOQUES = [0, 1, 2, 3];
+const IMAGENES_PRODUCTOS = [producto1, producto2, producto3, producto4];
+
+&lt;div className="marquee"&gt;
+  &lt;div className="marquee__track marquee__track--up"&gt;
+    {[...BLOQUES, ...BLOQUES].map((n, i) =&gt; (
+      &lt;div className="marquee__bloque" key={`up-${i}`}&gt;
+        &lt;img src={IMAGENES_PRODUCTOS[n]} alt="" /&gt;
+      &lt;/div&gt;
+    ))}
+  &lt;/div&gt;
+  &lt;div className="marquee__track marquee__track--down"&gt;...&lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<p>Truco: el contenido se duplica con <code>[...BLOQUES, ...BLOQUES]</code> y el CSS lo desplaza un -50%, creando bucle perfecto.</p>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Personalizar la home</span>
+    <span class="nivel">★ Fácil</span>
+  </div>
+  <ol>
+    <li>Cambia el texto del <code>&lt;h1&gt;</code> del hero.</li>
+    <li>Modifica los números de las estadísticas.</li>
+    <li>Ajusta la velocidad del marquee: en <code>Home.css</code>, cambia <code>24s</code> por <code>40s</code> (más lento) o <code>10s</code> (más rápido).</li>
+  </ol>
+</div>
+
+<!-- ───────── LOGIN ───────── -->
+<h2 id="login">Login — <code>src/pages/Login.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<ul>
+  <li>Formulario controlado de correo y contraseña.</li>
+  <li>Botón "Iniciar sesión con GitHub" que abre un popup OAuth2.</li>
+  <li>Tras login OK, redirige a la home.</li>
+  <li>Layout especial: ocupa toda la pantalla, sin <code>Header</code> ni <code>Footer</code> (esto se controla en <code>App.jsx</code>).</li>
+</ul>
+
+<h3>Estado del componente</h3>
+<div class="code-wrap">
+  <span class="file-label">Login.jsx — fragmento</span>
+<pre><code class="language-jsx">const { login, aceptarToken } = useAuth();
+const navegar = useNavigate();
+const [correo, setCorreo] = useState('');
+const [clave, setClave] = useState('');
+const [error, setError] = useState('');
+const [enviando, setEnviando] = useState(false);
+const intervaloRef = useRef(null);</code></pre>
+</div>
+
+<h3>Submit del formulario</h3>
+<div class="code-wrap">
+  <span class="file-label">Login.jsx — enviar</span>
+<pre><code class="language-jsx">const enviar = async (e) =&gt; {
+  e.preventDefault();                // ⬅ evita que recargue la página
+  setError('');
+  setEnviando(true);
+  const res = await login(correo, clave);   // función del contexto
+  setEnviando(false);
+  if (res.ok) navegar('/');
+  else setError(res.error || 'No se ha podido iniciar sesión');
+};</code></pre>
+</div>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> <code>e.preventDefault()</code></div>
+  <p>En HTML estándar, al enviar un form el navegador recarga la página. Como nosotros gestionamos el envío con JS, lo cancelamos.</p>
+</div>
+
+<h3>OAuth con GitHub</h3>
+<p>Ya explicado en detalle en la sección 07. Resumen: popup → setInterval que vigila cuándo el popup vuelve a tu dominio → leer JSON con el token → <code>aceptarToken</code>.</p>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Validación de campos</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Añade validación: la contraseña debe tener al menos 6 caracteres. Antes de llamar a <code>login</code>:</p>
+<pre><code class="language-jsx">if (clave.length &lt; 6) {
+  setError('La contraseña debe tener al menos 6 caracteres');
+  setEnviando(false);
+  return;
+}</code></pre>
+</div>
+
+<!-- ───────── REGISTRO ───────── -->
+<h2 id="registro">Registro — <code>src/pages/Registro.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Formulario con campos: nombre, apellidos, correo, clave, fechaNacimiento, teléfono. Llama a <code>registrar</code> del contexto (que internamente hace POST <code>/usuarios</code> y, si va bien, login automático).</p>
+
+<h3>Estado en un solo objeto</h3>
+<div class="code-wrap">
+  <span class="file-label">Registro.jsx</span>
+<pre><code class="language-jsx">const [datos, setDatos] = useState({
+  nombre: '', apellidos: '', correo: '',
+  clave: '', fechaNacimiento: '', telefono: '',
+});
+
+const cambiar = (e) =&gt;
+  setDatos({ ...datos, [e.target.name]: e.target.value });</code></pre>
+</div>
+
+<p>El truco <code>[e.target.name]</code> permite usar UNA función para TODOS los inputs. Cada input tiene su <code>name</code> y la función modifica esa propiedad concreta del objeto.</p>
+
+<h3>Validación nativa de HTML</h3>
+<p>El formulario usa atributos HTML para validar:</p>
+<ul>
+  <li><code>required</code>: el campo no puede estar vacío.</li>
+  <li><code>type="email"</code>: el navegador valida formato de correo.</li>
+  <li><code>type="date"</code>: muestra un selector de fecha.</li>
+  <li><code>minLength={4}</code> en la clave.</li>
+</ul>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Añadir confirmación de contraseña</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Añade un campo <code>claveRepetida</code> al estado y otro input. Antes de enviar, valida que coincida con <code>clave</code>.</p>
+  <details>
+    <summary>Esqueleto</summary>
+<pre><code class="language-jsx">if (datos.clave !== datos.claveRepetida) {
+  setError('Las contraseñas no coinciden');
+  setEnviando(false);
+  return;
+}</code></pre>
+  </details>
+</div>
+
+<!-- ───────── PRODUCTOS ───────── -->
+<h2 id="productos">Productos — <code>src/pages/Productos.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Listado paginado de productos con cuatro filtros y un botón "Publicar producto".</p>
+
+<h3>Estado</h3>
+<div class="code-wrap">
+  <span class="file-label">Productos.jsx — estado</span>
+<pre><code class="language-jsx">const TAMANYO_PAGINA = 9;
+const FILTROS_VACIOS = { descripcion: '', categoria: '', estado: '', precioMaximo: '' };
+
+const [searchParams] = useSearchParams();
+const descripcionUrl = searchParams.get('descripcion') ?? '';
+
+const [filtros, setFiltros] = useState({ ...FILTROS_VACIOS, descripcion: descripcionUrl });
+const [page, setPage] = useState(0);
+const [productos, setProductos] = useState([]);
+const [totalPaginas, setTotalPaginas] = useState(1);
+const [categorias, setCategorias] = useState([]);
+const [cargando, setCargando] = useState(false);
+const [error, setError] = useState('');</code></pre>
+</div>
+
+<h3>Tres useEffect</h3>
+<ol>
+  <li>Cargar categorías UNA vez al montar (lista para el desplegable).</li>
+  <li>Reaccionar a cambios de URL: si llega <code>?descripcion=xxx</code> desde el header, actualiza el filtro.</li>
+  <li>Cargar productos cuando cambien filtros o página.</li>
+</ol>
+
+<div class="code-wrap">
+  <span class="file-label">Productos.jsx — efectos</span>
+<pre><code class="language-jsx">useEffect(() =&gt; {
+  categoriasApi.listarCategoriasRaiz()
+    .then((lista) =&gt; setCategorias(lista ?? []))
+    .catch(() =&gt; setCategorias([]));
+}, []);
+
+useEffect(() =&gt; {
+  setPage(0);
+  setFiltros((prev) =&gt; ({ ...prev, descripcion: descripcionUrl }));
+}, [descripcionUrl]);
+
+useEffect(() =&gt; {
+  setCargando(true);
+  setError('');
+  productosApi
+    .listarProductos({ ...filtros, page, size: TAMANYO_PAGINA })
+    .then((res) =&gt; {
+      setProductos(desempaquetar(res, 'productoList'));
+      setTotalPaginas(totalPaginasRes(res));
+    })
+    .catch((err) =&gt; setError(err.message))
+    .finally(() =&gt; setCargando(false));
+}, [filtros, page]);</code></pre>
+</div>
+
+<h3>Filtros: cuatro inputs controlados con una sola función</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const cambiarFiltro = (e) =&gt; {
+  setPage(0);                                      // resetea a página 0 al filtrar
+  setFiltros({ ...filtros, [e.target.name]: e.target.value });
+};
+
+&lt;Form.Control name="descripcion" value={filtros.descripcion} onChange={cambiarFiltro} /&gt;
+&lt;Form.Select name="categoria"   value={filtros.categoria}   onChange={cambiarFiltro}&gt; ... &lt;/Form.Select&gt;
+&lt;Form.Select name="estado"      value={filtros.estado}      onChange={cambiarFiltro}&gt; ... &lt;/Form.Select&gt;
+&lt;Form.Control name="precioMaximo" type="number" value={filtros.precioMaximo} onChange={cambiarFiltro} /&gt;</code></pre>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Añadir un quinto filtro</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Añade un filtro "precio mínimo":</p>
+  <ol>
+    <li>En <code>FILTROS_VACIOS</code> añade <code>precioMinimo: ''</code>.</li>
+    <li>Añade otro <code>&lt;Col md={2}&gt;</code> con un <code>Form.Control type="number" name="precioMinimo"</code>.</li>
+    <li>No tocas <code>productos.js</code>: <code>listarProductos</code> ya pasa todos los filtros como query string.</li>
+  </ol>
+  <details>
+    <summary>Nota sobre el backend</summary>
+    <p>El backend ArSo tendría que aceptar también ese parámetro. Si no lo hace, el filtro simplemente se ignora.</p>
+  </details>
+</div>
+
+<!-- ───────── DETALLE ───────── -->
+<h2 id="detalle">DetalleProducto — <code>src/pages/DetalleProducto.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Página del producto individual. Muestra:</p>
+<ul>
+  <li>Descripción larga, categoría, fecha de publicación, visualizaciones, envío disponible.</li>
+  <li>Lugar de recogida con enlace a OpenStreetMap si tiene coordenadas.</li>
+  <li>Tarjeta con precio, estado, badge "Vendido" si lo está.</li>
+  <li>Botón "Comprar" (o "Editar" / "Eliminar" si es del usuario).</li>
+  <li>Datos del vendedor con link a su perfil.</li>
+</ul>
+
+<h3>Efecto que carga y suma visualización</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const visualizacionContadaRef = useRef(null);
+
+useEffect(() =&gt; {
+  setCargando(true);
+  productosApi.obtenerProducto(id)
+    .then(setProducto)
+    .catch((err) =&gt; setError(err.message))
+    .finally(() =&gt; setCargando(false));
+
+  if (visualizacionContadaRef.current !== id) {
+    visualizacionContadaRef.current = id;
+    productosApi.sumarVisualizacion(id).catch(() =&gt; {});
+  }
+}, [id]);</code></pre>
+</div>
+
+<p>El <code>useRef</code> evita sumar dos visualizaciones al mismo producto en el mismo renderizado (porque <code>StrictMode</code> en desarrollo monta dos veces).</p>
+
+<h3>Acción "Comprar"</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const comprar = async () =&gt; {
+  if (!usuario) { navegar('/login'); return; }
+  try {
+    await compraventasApi.crearCompraventa({
+      idProducto: producto.id,
+      idComprador: usuario.id,
+    });
+    setMensaje('¡Compra solicitada con éxito!');
+    const refrescado = await productosApi.obtenerProducto(id);  // refresca estado
+    setProducto(refrescado);
+  } catch (err) {
+    setError(err.message);
+  }
+};</code></pre>
+</div>
+
+<h3>Acción "Eliminar"</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const eliminar = async () =&gt; {
+  const confirmado = window.confirm(`¿Seguro que quieres eliminar "${producto.titulo}"?`);
+  if (!confirmado) return;
+  await productosApi.eliminarProducto(producto.id);
+  navegar('/perfil');
+};</code></pre>
+</div>
+
+<h3>Renderizado condicional según rol</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const esMio = usuario &amp;&amp; producto.vendedor?.id === usuario.id;
+const yaVendido = producto.vendido;
+// ...
+{esMio ? (
+  !yaVendido &amp;&amp; (
+    &lt;div&gt;
+      &lt;Link to={`/productos/${producto.id}/editar`} className="btn btn-lav"&gt;Editar producto&lt;/Link&gt;
+      &lt;Button variant="outline-danger" onClick={eliminar}&gt;Eliminar producto&lt;/Button&gt;
+    &lt;/div&gt;
+  )
+) : (
+  &lt;button onClick={comprar} disabled={yaVendido}&gt;
+    {yaVendido ? 'No disponible' : 'Comprar'}
+  &lt;/button&gt;
+)}</code></pre>
+</div>
+
+<h3>Enlace al mapa</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">&lt;a href={`https://www.openstreetmap.org/?mlat=${lat}&amp;mlon=${lon}#map=15/${lat}/${lon}`}
+   target="_blank" rel="noopener noreferrer"&gt;
+  Ver en mapa
+&lt;/a&gt;</code></pre>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Mostrar las visualizaciones en la card del listado</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>En <code>ProductoCard</code> añade un texto pequeño con <code>{producto.visualizaciones ?? 0} visualizaciones</code>.</p>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Doble confirmación al comprar</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Añade un <code>window.confirm</code> antes de <code>crearCompraventa</code>: "¿Confirmas la compra por X€?"</p>
+</div>
+
+<!-- ───────── NUEVO PRODUCTO ───────── -->
+<h2 id="nuevo">NuevoProducto — <code>src/pages/NuevoProducto.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Formulario para publicar un producto. Campos:</p>
+<ul>
+  <li>Título, descripción, precio, estado, categoría (selecciona de las categorías raíz).</li>
+  <li>Toggle "Envío disponible".</li>
+  <li>Sección opcional "Lugar de recogida": descripción y coordenadas (longitud, latitud).</li>
+</ul>
+
+<h3>Dos estados independientes</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const [datos, setDatos] = useState({
+  titulo: '', descripcion: '', precio: '',
+  estado: 'NUEVO', idCategoria: '', disponibilidadEnvio: false,
+});
+const [recogida, setRecogida] = useState({
+  descripcion: '', longitud: '', latitud: '',
+});</code></pre>
+</div>
+
+<h3>El submit hace dos llamadas API</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const { id: idCreado } = await productosApi.crearProducto({
+  ...datos,
+  precio: Number(datos.precio),
+  idVendedor: usuario.id,
+});
+
+if (idCreado &amp;&amp; recogida.descripcion.trim()) {
+  await productosApi.asignarRecogida(idCreado, {
+    descripcion: recogida.descripcion.trim(),
+    longitud: Number(recogida.longitud) || 0,
+    latitud: Number(recogida.latitud) || 0,
+  });
+}
+
+navegar(idCreado ? `/productos/${idCreado}` : '/perfil/productos');</code></pre>
+</div>
+
+<p>Nótese cómo se extrae <code>{ id: idCreado }</code> del resultado de <code>crearProducto</code>: la función está marcada con <code>returnLocation: true</code> en <code>productos.js</code>, así que devuelve <code>{ datos, location, id }</code>.</p>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Cambiar el estado por defecto</span>
+    <span class="nivel">★ Muy fácil</span>
+  </div>
+  <p>Cambia el estado inicial del formulario de <code>'NUEVO'</code> a <code>'BUEN_ESTADO'</code> (el más realista para segunda mano).</p>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Añadir un campo "precio mínimo negociable"</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <ol>
+    <li>Añade al estado <code>precioMinimo: ''</code>.</li>
+    <li>Añade un <code>Form.Control type="number"</code> con <code>name="precioMinimo"</code>.</li>
+    <li>En el submit, conviértelo con <code>Number(datos.precioMinimo)</code> y pásalo al body.</li>
+  </ol>
+</div>
+
+<!-- ───────── EDITAR ───────── -->
+<h2 id="editar">EditarProducto — <code>src/pages/EditarProducto.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Editar precio, descripción y lugar de recogida de un producto existente. Comprueba que el usuario es el vendedor; si no, muestra un mensaje de prohibido.</p>
+
+<h3>Carga inicial</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">useEffect(() =&gt; {
+  productosApi.obtenerProducto(id)
+    .then((p) =&gt; {
+      setProducto(p);
+      setPrecio(p.precio ?? '');
+      setDescripcion(p.descripcion ?? '');
+      setRecogida({
+        descripcion: p.lugarDeRecogida?.recogida ?? '',
+        longitud:    p.lugarDeRecogida?.longitud ?? '',
+        latitud:     p.lugarDeRecogida?.latitud ?? '',
+      });
+    });
+}, [id]);</code></pre>
+</div>
+
+<h3>Tres "guardias" antes de mostrar el form</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">if (error &amp;&amp; !producto)  return &lt;Alert&gt;{error}&lt;/Alert&gt;;
+if (!producto)            return &lt;Spinner /&gt;;
+if (usuario &amp;&amp; producto.vendedor?.id !== usuario.id) {
+  return &lt;Alert variant="warning"&gt;No puedes editar este producto.&lt;/Alert&gt;;
+}
+if (producto.vendido) {
+  return &lt;Alert variant="secondary"&gt;Este producto ya se ha vendido...&lt;/Alert&gt;;
+}</code></pre>
+</div>
+
+<!-- ───────── PERFIL ───────── -->
+<h2 id="perfil">Perfil — <code>src/pages/Perfil.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Página del usuario logueado. Dos columnas:</p>
+<ul>
+  <li>Izquierda: formulario de datos personales + botón cerrar sesión.</li>
+  <li>Derecha: pestañas (Mis productos / Mis ventas / Mis compras) con <code>&lt;Outlet /&gt;</code> que renderiza la subruta.</li>
+</ul>
+
+<h3>Cargar los datos al montar</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">useEffect(() =&gt; {
+  if (!usuario) return;
+  usuariosApi.obtenerUsuario(usuario.id)
+    .then((u) =&gt; {
+      setCorreo(u.correo ?? '');
+      setDatos({
+        nombre: u.nombre ?? '',
+        apellidos: u.apellidos ?? '',
+        telefono: u.telefono ?? '',
+        fechaNacimiento: u.fechaNacimiento ?? '',
+        clave: '',
+      });
+    });
+}, [usuario]);</code></pre>
+</div>
+
+<h3>Guardar cambios</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const enviar = async (e) =&gt; {
+  e.preventDefault();
+  const cambios = { ...datos };
+  if (!cambios.clave) delete cambios.clave;     // no manda clave vacía
+  const res = await actualizarPerfil(cambios);  // función del contexto
+  if (res.ok) setMensaje('Perfil actualizado');
+  else setError(res.error);
+};</code></pre>
+</div>
+
+<h3>Pestañas con NavLink + Outlet</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const claseTab = ({ isActive }) =&gt; `perfil-tab ${isActive ? 'activa' : ''}`;
+
+&lt;div className="perfil-tabs"&gt;
+  &lt;NavLink to="/perfil/productos" className={claseTab}&gt;Mis productos&lt;/NavLink&gt;
+  &lt;NavLink to="/perfil/ventas"    className={claseTab}&gt;Mis ventas&lt;/NavLink&gt;
+  &lt;NavLink to="/perfil/compras"   className={claseTab}&gt;Mis compras&lt;/NavLink&gt;
+&lt;/div&gt;
+&lt;Outlet /&gt;</code></pre>
+</div>
+
+<h3 id="perfil-productos">Subpestaña PerfilProductos</h3>
+<div class="code-wrap">
+  <span class="file-label">src/pages/PerfilProductos.jsx</span>
+<pre><code class="language-jsx">// Paginación local: trae hasta 500, filtra por vendedor y pagina en cliente
+productosApi.listarProductos({ page: 0, size: TAMANYO_LOTE })
+  .then((res) =&gt; setTodos(
+    desempaquetar(res, 'productoList').filter(
+      (p) =&gt; p.vendedor?.id === usuario.id
+    )
+  ));
+// ...
+const totalPaginas = Math.max(1, Math.ceil(todos.length / TAMANYO_PAGINA));
+const desde = page * TAMANYO_PAGINA;
+const lista = todos.slice(desde, desde + TAMANYO_PAGINA);</code></pre>
+</div>
+
+<h3 id="perfil-ventas">Subpestaña PerfilVentas</h3>
+<div class="code-wrap">
+  <span class="file-label">src/pages/PerfilVentas.jsx</span>
+<pre><code class="language-jsx">compraventasApi.ventas(usuario.id, page, TAMANYO_PAGINA)
+  .then((res) =&gt; {
+    setLista(desempaquetar(res, 'compraventas'));
+    setPaginas(totalPaginasRes(res));
+  });
+// Para cada venta: título, precio, comprador (Link), fecha</code></pre>
+</div>
+
+<h3 id="perfil-compras">Subpestaña PerfilCompras</h3>
+<p>Idéntico a Ventas pero con <code>compras(...)</code> y mostrando "Vendedor:". Misma estructura, distinto endpoint.</p>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Añadir una pestaña "Favoritos"</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <ol>
+    <li>Crea <code>src/pages/PerfilFavoritos.jsx</code> con un mensaje placeholder.</li>
+    <li>En <code>App.jsx</code>, dentro de la ruta <code>/perfil</code>, añade <code>&lt;Route path="favoritos" element={&lt;PerfilFavoritos /&gt;} /&gt;</code>.</li>
+    <li>En <code>Perfil.jsx</code>, añade el <code>NavLink</code>: <code>&lt;NavLink to="/perfil/favoritos" className={claseTab}&gt;Favoritos&lt;/NavLink&gt;</code>.</li>
+  </ol>
+</div>
+
+<!-- ───────── PERFIL USUARIO ───────── -->
+<h2 id="perfil-usuario">PerfilUsuario — <code>src/pages/PerfilUsuario.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Ver el perfil PÚBLICO de otro usuario (por ejemplo, desde el detalle de un producto haciendo click en el nombre del vendedor).</p>
+
+<h3>Datos que muestra</h3>
+<ul>
+  <li>Nombre y apellidos.</li>
+  <li>Badge "Administrador" si <code>esAdministrador</code>.</li>
+  <li>Correo.</li>
+  <li>Contadores de ventas y compras (vienen del backend).</li>
+  <li>Si es uno mismo, botón "Editar mi perfil" que va a <code>/perfil</code>.</li>
+</ul>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">const { id } = useParams();
+const { usuario } = useAuth();
+const [datos, setDatos] = useState(null);
+
+useEffect(() =&gt; {
+  usuariosApi.obtenerUsuario(id)
+    .then(setDatos)
+    .catch((err) =&gt; setError(err.message))
+    .finally(() =&gt; setCargando(false));
+}, [id]);
+
+const esYoMismo = usuario?.id === datos.id;</code></pre>
+</div>
+
+<!-- ───────── ADMIN USUARIOS ───────── -->
+<h2 id="admin-usuarios">AdminUsuarios — <code>src/pages/AdminUsuarios.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Tabla de TODOS los usuarios registrados. Sólo accesible si <code>esAdmin</code> (protegido con <code>RutaProtegida soloAdmin</code>).</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">useEffect(() =&gt; {
+  usuariosApi.listarUsuarios()
+    .then((res) =&gt; setUsuarios(Array.isArray(res) ? res : []))
+    .catch((err) =&gt; setError(err.message))
+    .finally(() =&gt; setCargando(false));
+}, []);
+
+&lt;Table hover responsive&gt;
+  &lt;thead&gt;&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;Nombre&lt;/th&gt;&lt;th&gt;Correo&lt;/th&gt;&lt;th&gt;Rol&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+  &lt;tbody&gt;
+    {usuarios.map((u) =&gt; (
+      &lt;tr key={u.id}&gt;
+        &lt;td&gt;{u.id}&lt;/td&gt;
+        &lt;td&gt;&lt;Link to={`/usuarios/${u.id}`}&gt;{u.nombre} {u.apellidos}&lt;/Link&gt;&lt;/td&gt;
+        &lt;td&gt;{u.correo}&lt;/td&gt;
+        &lt;td&gt;{u.esAdministrador ? 'Administrador' : 'Usuario'}&lt;/td&gt;
+      &lt;/tr&gt;
+    ))}
+  &lt;/tbody&gt;
+&lt;/Table&gt;</code></pre>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Filtro por nombre en la tabla</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <ol>
+    <li>Añade un <code>useState('')</code> para el texto del filtro.</li>
+    <li>Añade un input arriba: <code>&lt;Form.Control placeholder="Filtrar por nombre" value={filtro} onChange={e =&gt; setFiltro(e.target.value)} /&gt;</code>.</li>
+    <li>En el <code>.map</code>, filtra: <code>usuarios.filter(u =&gt; (u.nombre + ' ' + u.apellidos).toLowerCase().includes(filtro.toLowerCase()))</code>.</li>
+  </ol>
+</div>
+
+<!-- ───────── ADMIN TRANSACCIONES ───────── -->
+<h2 id="admin-transacciones">AdminTransacciones — <code>src/pages/AdminTransacciones.jsx</code></h2>
+
+<h3>Qué hace</h3>
+<p>Tabla paginada de TODAS las compraventas con dos filtros opcionales: ID Comprador y ID Vendedor.</p>
+
+<h3>Truco del estado: dos copias</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">const [idComprador, setIdComprador] = useState('');     // input "borrador"
+const [idVendedor, setIdVendedor] = useState('');       // input "borrador"
+const [filtros, setFiltros] = useState({ idComprador: '', idVendedor: '' });  // aplicados</code></pre>
+</div>
+
+<p>Esto evita lanzar peticiones al backend con cada tecla. Sólo al pulsar "Buscar" se copia el "borrador" a "filtros aplicados", y como ese cambio está en las dependencias del useEffect, ahí se dispara la petición.</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">const buscar = (e) =&gt; {
+  e.preventDefault();
+  setPage(0);
+  setFiltros({ idComprador: idComprador.trim(), idVendedor: idVendedor.trim() });
+};
+
+useEffect(() =&gt; {
+  compraventasApi.transacciones(filtros.idComprador, filtros.idVendedor, page, TAMANYO_PAGINA)
+    .then((res) =&gt; {
+      setResultado(desempaquetar(res, 'compraventas'));
+      setPaginas(totalPaginasRes(res));
+    });
+}, [filtros, page]);</code></pre>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio</span>
+    <span>Añadir filtro por fecha</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>Asumiendo que el backend acepta <code>?desde=YYYY-MM-DD&amp;hasta=YYYY-MM-DD</code>:</p>
+  <ol>
+    <li>Añade dos estados borrador <code>fechaDesde, fechaHasta</code> y dos inputs <code>type="date"</code>.</li>
+    <li>Añade <code>desde, hasta</code> al estado <code>filtros</code> y al <code>buscar</code>.</li>
+    <li>En <code>compraventas.js</code>, modifica <code>transacciones</code> para que acepte estos parámetros:
+<pre><code class="language-js">export const transacciones = (idComprador, idVendedor, desde, hasta, page = 0, size = 10) =&gt;
+  request('/compraventas/transacciones', {
+    query: { idComprador, idVendedor, desde, hasta, page, size },
+  });</code></pre>
+    </li>
+  </ol>
+</div>
+
+<!-- ───────── ERROR 404 ───────── -->
+<h2 id="error">Error404 — <code>src/pages/Error404.jsx</code></h2>
+
+<p>Página simple que se muestra para cualquier URL que no matchea ninguna ruta. Es la última ruta declarada con <code>path="*"</code> en <code>App.jsx</code>.</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">function Error404() {
+  return (
+    &lt;Container className="py-5 text-center"&gt;
+      &lt;h1 className="display-1"&gt;404&lt;/h1&gt;
+      &lt;p className="lead text-muted"&gt;La página que buscas no existe.&lt;/p&gt;
+      &lt;Link to="/" className="btn btn-lav"&gt;Volver al inicio&lt;/Link&gt;
+    &lt;/Container&gt;
+  );
+}</code></pre>
+</div>
+
+<h2>Quiz general de las páginas</h2>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
+  <p class="quiz-pregunta">¿Por qué <code>Productos.jsx</code> tiene tres <code>useEffect</code> distintos en lugar de uno?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Porque React no permite poner todo en uno.</button>
+    <button class="quiz-opcion" data-correcta="1">Para separar responsabilidades: cargar categorías una vez, sincronizar con la URL, y recargar productos cuando cambian filtros.</button>
+    <button class="quiz-opcion" data-correcta="0">Para mejorar el rendimiento.</button>
+    <button class="quiz-opcion" data-correcta="0">Por error histórico.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Bien. Cada efecto tiene sus propias dependencias y su propia razón de ejecutarse." data-ko="Cada efecto se dispara por un motivo distinto; juntarlos forzaría ejecutar todo cuando sólo cambia una dependencia."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 2</div>
+  <p class="quiz-pregunta">En <code>AdminTransacciones</code>, ¿por qué hay <code>idComprador</code> y a la vez <code>filtros.idComprador</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Por duplicado innecesario.</button>
+    <button class="quiz-opcion" data-correcta="1">Uno es lo que escribe el usuario; el otro es el filtro APLICADO. Sólo al pulsar "Buscar" se sincronizan.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque el backend requiere dos parámetros.</button>
+    <button class="quiz-opcion" data-correcta="0">Para mantener el historial de búsquedas.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Bien. Patrón habitual para evitar peticiones a cada tecla." data-ko="Es un patrón llamado &quot;controlado vs aplicado&quot;: se separa lo que se está escribiendo de lo que se envió al servidor."></p>
+</div>
+
+<div class="callout tip">
+  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> Para la entrevista</div>
+  <p>Si te piden "implementa una funcionalidad X", el guion es siempre el mismo: (1) ¿Qué página? (2) ¿Qué estado hace falta? (3) ¿Qué función de api/ se llama? (4) ¿Cuándo se llama: en useEffect (al montar/cambiar dep) o en respuesta a un evento (onClick/onSubmit)? (5) ¿Qué muestro mientras carga (Spinner), si hay error (Alert) y si no hay datos? (6) ¿Hay que proteger la ruta? Repasa una página cualquiera y verás que cumple este esqueleto.</p>
+</div>

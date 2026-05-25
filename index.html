@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial DaWeb Reventas — Preparación de Entrevista</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <button id="btnMenu" class="icon-btn" aria-label="Menú">
+      <i class="bi bi-list"></i>
+    </button>
+    <a class="brand" href="#/intro">
+      <i class="bi bi-mortarboard-fill"></i>
+      Tutorial DaWeb
+    </a>
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="search" id="buscador" placeholder="Buscar (Ctrl + K)…" />
+      <ul id="resultadosBusqueda" class="search-results" hidden></ul>
+    </div>
+    <button id="btnTema" class="icon-btn" aria-label="Cambiar tema" title="Tema claro / oscuro">
+      <i class="bi bi-moon-stars-fill"></i>
+    </button>
+    <button id="btnReset" class="icon-btn" aria-label="Reiniciar progreso" title="Reiniciar progreso">
+      <i class="bi bi-arrow-counterclockwise"></i>
+    </button>
+  </header>
+
+  <div class="progressbar"><div id="progressFill"></div></div>
+
+  <div class="layout">
+    <aside id="sidebar" class="sidebar">
+      <nav>
+        <ol id="navSecciones"></ol>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="progresoTexto">0 / 12 completadas</span>
+      </div>
+    </aside>
+
+    <main id="contenido" class="contenido">
+      <div class="loader">Cargando…</div>
+    </main>
+  </div>
+
+  <button id="btnMarcar" class="fab" title="Marcar sección como completada">
+    <i class="bi bi-check2-circle"></i>
+    <span>Marcar completada</span>
+  </button>
+
+  <template id="tplQuiz">
+    <div class="quiz">
+      <p class="quiz-pregunta"></p>
+      <div class="quiz-opciones"></div>
+      <p class="quiz-feedback" hidden></p>
+    </div>
+  </template>
+
+  <!-- Secciones compiladas — funcionan con file:// y con servidor HTTP -->
+  <script src="secciones/00-intro.js"></script>
+  <script src="secciones/01-html.js"></script>
+  <script src="secciones/02-javascript.js"></script>
+  <script src="secciones/03-react.js"></script>
+  <script src="secciones/04-estado.js"></script>
+  <script src="secciones/05-router.js"></script>
+  <script src="secciones/06-css.js"></script>
+  <script src="secciones/07-contexto.js"></script>
+  <script src="secciones/08-api.js"></script>
+  <script src="secciones/09-protegidas.js"></script>
+  <script src="secciones/10-funcionalidades.js"></script>
+  <script src="secciones/11-vite.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

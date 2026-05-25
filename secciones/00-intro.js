@@ -1,0 +1,211 @@
+window.__SECC = window.__SECC || {};
+window.__SECC["intro"] = `<h1>Introducción y puesta en marcha</h1>
+<p class="subtitulo">Visión global del proyecto, tecnologías y cómo levantar el entorno desde cero.</p>
+
+<p class="lead">DaWeb Reventas es un marketplace de productos de segunda mano (estilo Wallapop). Esta sección te explica de dónde sale cada tecnología que aparecerá luego, por qué se usa y cómo arrancar el proyecto en tu ordenador para experimentar mientras lees el tutorial.</p>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Para empezar</div>
+  <p>Asume que no sabes nada. Cada concepto se explica antes de usarlo. Si una palabra te suena rara, búscala en este tutorial con <span class="kbd">Ctrl</span> + <span class="kbd">K</span>.</p>
+</div>
+
+<h2>1. ¿Qué es una aplicación web?</h2>
+<p>Una aplicación web tiene dos partes claramente separadas:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4><i class="bi bi-window"></i> Frontend</h4>
+    <p>Lo que ves y manipulas. Vive en tu navegador (Chrome, Firefox…). Está hecho de:</p>
+    <ul>
+      <li><strong>HTML</strong>: la estructura (qué hay en la página).</li>
+      <li><strong>CSS</strong>: la apariencia (colores, espacios, tipografía).</li>
+      <li><strong>JavaScript</strong>: el comportamiento (clicks, llamadas a servidor, animaciones).</li>
+    </ul>
+    <p>En DaWeb el frontend está construido con <strong>React</strong>, una librería que añade superpoderes a HTML+CSS+JS.</p>
+  </div>
+  <div class="tarjeta">
+    <h4><i class="bi bi-hdd-stack"></i> Backend</h4>
+    <p>Lo que no ves. Vive en un servidor remoto. Guarda los datos en una base de datos (MySQL) y responde a peticiones del frontend.</p>
+    <p>En DaWeb el backend es un proyecto Java de la asignatura ArSo (no lo tocamos en este tutorial) que expone una API REST en <code>http://localhost:8090</code>.</p>
+  </div>
+</div>
+
+<h3>Cómo se hablan</h3>
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Tu navegador carga la web desde <code>http://localhost:5173</code> (frontend Vite).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> La web hace una petición HTTP a <code>/api/productos</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> Vite la reenvía a <code>http://localhost:8090/productos</code> (el backend).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> El backend consulta la base de datos MySQL y responde con un JSON.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">5</span> El frontend recibe el JSON y pinta los productos.</div>
+</div>
+
+<h2>2. Las tecnologías una a una</h2>
+<table>
+  <thead>
+    <tr><th>Tecnología</th><th>Para qué sirve</th><th>Dónde aparece</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>HTML</strong></td><td>Estructura básica</td><td><code>index.html</code></td></tr>
+    <tr><td><strong>CSS</strong></td><td>Estilos visuales</td><td><code>*.css</code></td></tr>
+    <tr><td><strong>JavaScript (ES6+)</strong></td><td>Lógica del navegador</td><td><code>*.js</code>, <code>*.jsx</code></td></tr>
+    <tr><td><strong>React</strong></td><td>Componentes reutilizables</td><td><code>*.jsx</code></td></tr>
+    <tr><td><strong>JSX</strong></td><td>HTML dentro de JavaScript</td><td><code>*.jsx</code></td></tr>
+    <tr><td><strong>React Router DOM</strong></td><td>Cambiar páginas sin recargar</td><td><code>App.jsx</code></td></tr>
+    <tr><td><strong>React Bootstrap</strong></td><td>Componentes ya hechos (botones, tablas, cards)</td><td>imports de <code>react-bootstrap</code></td></tr>
+    <tr><td><strong>Bootstrap 5</strong></td><td>Sistema de clases CSS responsive</td><td>clases como <code>col-md-6</code></td></tr>
+    <tr><td><strong>Bootstrap Icons</strong></td><td>Iconos vectoriales</td><td><code>&lt;i class="bi bi-…"&gt;</code></td></tr>
+    <tr><td><strong>Vite</strong></td><td>Servidor de desarrollo + bundler</td><td><code>vite.config.js</code></td></tr>
+    <tr><td><strong>Fetch API</strong></td><td>Llamadas HTTP</td><td><code>api/client.js</code></td></tr>
+    <tr><td><strong>JWT</strong></td><td>Token de autenticación</td><td>localStorage clave <code>arso_token</code></td></tr>
+    <tr><td><strong>OAuth2 (GitHub)</strong></td><td>Login con GitHub</td><td><code>pages/Login.jsx</code></td></tr>
+  </tbody>
+</table>
+
+<h2>3. Mapa del proyecto</h2>
+<p>Abre el proyecto en VS Code. La carpeta importante es <code>daweb/daweb/</code> (la subcarpeta interna). Esto es lo que hay:</p>
+
+<div class="code-wrap">
+  <span class="file-label">estructura</span>
+<pre><code class="language-bash">daweb/                         ← raíz del repo
+└── daweb/                     ← frontend (aquí trabajamos)
+    ├── public/                ← archivos estáticos
+    ├── src/
+    │   ├── api/               ← llamadas al backend
+    │   ├── components/        ← piezas reutilizables (Header, Card…)
+    │   ├── context/           ← estado global (auth)
+    │   ├── pages/             ← una por cada URL
+    │   ├── assets/            ← imágenes
+    │   ├── App.jsx            ← define las rutas
+    │   ├── main.jsx           ← arranca React
+    │   ├── index.css          ← estilos globales
+    │   └── theme.css          ← variables del tema
+    ├── index.html             ← HTML que recibe el navegador
+    ├── vite.config.js         ← configuración del servidor dev
+    └── package.json           ← dependencias y scripts
+</code></pre>
+</div>
+
+<h2>4. Cómo arrancar el proyecto</h2>
+
+<h3>Requisitos</h3>
+<ul>
+  <li><strong>Node.js</strong> 18 o superior. Comprueba la versión con <code>node --version</code>.</li>
+  <li>Opcional: el backend ArSo corriendo en <code>http://localhost:8090</code> (si quieres que las llamadas devuelvan datos reales).</li>
+</ul>
+
+<h3>Pasos</h3>
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Abre una terminal en <code>daweb/daweb/</code>.</div>
+  <div class="flujo-paso"><span class="num">2</span> La primera vez: <code>npm install</code> (descarga las librerías a <code>node_modules/</code>).</div>
+  <div class="flujo-paso"><span class="num">3</span> <code>npm run dev</code> (arranca el servidor de desarrollo en el puerto 5173).</div>
+  <div class="flujo-paso"><span class="num">4</span> Abre <code>http://localhost:5173/</code> en el navegador.</div>
+</div>
+
+<h3>Otros comandos</h3>
+<table>
+  <tr><th>Comando</th><th>Para qué</th></tr>
+  <tr><td><code>npm install</code></td><td>Instala las dependencias declaradas en <code>package.json</code></td></tr>
+  <tr><td><code>npm run dev</code></td><td>Arranca servidor de desarrollo con recarga en caliente</td></tr>
+  <tr><td><code>npm run build</code></td><td>Genera la versión optimizada para producción en <code>dist/</code></td></tr>
+  <tr><td><code>npm run preview</code></td><td>Sirve <code>dist/</code> para comprobar cómo quedaría desplegado</td></tr>
+</table>
+
+<h2>5. Pequeño experimento mental</h2>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta rápida</div>
+  <p class="quiz-pregunta">Cuando ejecutas <code>npm run dev</code> y abres <code>http://localhost:5173/productos</code>, ¿quién devuelve los productos?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">El servidor Vite, leyendo un fichero local.</button>
+    <button class="quiz-opcion" data-correcta="0">El navegador, generándolos al vuelo con React.</button>
+    <button class="quiz-opcion" data-correcta="1">El backend Java en el puerto 8090, al que Vite redirige las peticiones <code>/api/...</code>.</button>
+    <button class="quiz-opcion" data-correcta="0">La librería React Router, que tiene los datos en memoria.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Vite sólo sirve el frontend; los datos vienen siempre del backend." data-ko="Vite sirve el código del frontend, pero los datos los pide React al backend Java vía proxy."></p>
+</div>
+
+<h2>6. Ejercicios</h2>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 1</span>
+    <span>Inspeccionar la estructura</span>
+    <span class="nivel">★ Muy fácil</span>
+  </div>
+  <p>Abre <code>daweb/daweb/</code> en tu editor y responde mentalmente:</p>
+  <ol>
+    <li>¿Cuántos ficheros hay en <code>src/pages/</code>?</li>
+    <li>¿Cuántos en <code>src/api/</code>?</li>
+    <li>¿Cuál es la dependencia que más pesa según el orden de <code>package.json</code>?</li>
+  </ol>
+  <details>
+    <summary>Ver respuestas</summary>
+    <p>15 páginas (Home, Login, Registro, Productos, DetalleProducto, NuevoProducto, EditarProducto, Perfil, PerfilProductos, PerfilVentas, PerfilCompras, PerfilUsuario, AdminUsuarios, AdminTransacciones, Error404).</p>
+    <p>7 ficheros en <code>api/</code>: <code>auth.js</code>, <code>categorias.js</code>, <code>client.js</code>, <code>compraventas.js</code>, <code>productos.js</code>, <code>usuarios.js</code>, <code>util.js</code>.</p>
+    <p>La dependencia principal es <code>react</code> (con su pareja <code>react-dom</code>).</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 2</span>
+    <span>Arrancar el proyecto y modificar algo en caliente</span>
+    <span class="nivel">★ Fácil</span>
+  </div>
+  <ol>
+    <li>Ejecuta <code>npm install</code> y luego <code>npm run dev</code>.</li>
+    <li>Abre <code>http://localhost:5173/</code>.</li>
+    <li>Sin cerrar el servidor, abre <code>src/pages/Home.jsx</code> y cambia el texto del <code>&lt;h1&gt;</code> (línea ~20) por algo como <em>"Mi web personal"</em>. Guarda.</li>
+    <li>Observa el navegador: el cambio aparece sin recargar.</li>
+  </ol>
+  <details>
+    <summary>¿Por qué ha funcionado sin recargar?</summary>
+    <p>Vite tiene <strong>Hot Module Replacement (HMR)</strong>: detecta el cambio en el fichero, recompila sólo lo afectado y se lo manda al navegador a través de un WebSocket. El estado de React se preserva.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 3</span>
+    <span>Detectar el proxy con DevTools</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <ol>
+    <li>Con la web abierta, pulsa <span class="kbd">F12</span> para abrir las herramientas de desarrollo.</li>
+    <li>Ve a la pestaña <strong>Network / Red</strong>.</li>
+    <li>Recarga (<span class="kbd">F5</span>) y navega a <code>/productos</code>.</li>
+    <li>Identifica las peticiones a URLs <code>/api/...</code>. Haz click en una: en <em>Request URL</em> verás <code>http://localhost:5173/api/productos</code>, pero en realidad el servidor que responde es el de 8090.</li>
+  </ol>
+  <details>
+    <summary>Solución y pista</summary>
+    <p>Mira el fichero <code>vite.config.js</code>: la sección <code>server.proxy</code> indica que cualquier petición a <code>/api</code> se reenvía a <code>http://localhost:8090</code> y se le quita el prefijo <code>/api</code> con <code>rewrite</code>.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 4</span>
+    <span>Sin backend</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <p>Si todavía no tienes ArSo corriendo: ¿qué partes de la web funcionan y cuáles no? Pruébalo.</p>
+  <details>
+    <summary>Lo que debería pasar</summary>
+    <ul>
+      <li>Páginas estáticas como Home (<code>/</code>) y Error 404: funcionan, no piden nada.</li>
+      <li><code>/productos</code>: aparece la página pero con error o lista vacía (la petición falla).</li>
+      <li>Login: el formulario aparece pero al intentar entrar devuelve error de red.</li>
+    </ul>
+    <p>El frontend es independiente del backend en cuanto a interfaz; sólo necesita el backend para datos.</p>
+  </details>
+</div>
+
+<div class="callout tip">
+  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> Truco para la entrevista</div>
+  <p>Si te preguntan "¿qué pasa cuando un usuario abre la web?", responde con los pasos del flujo: navegador → Vite sirve <code>index.html</code> → carga <code>main.jsx</code> → React monta <code>App</code> → React Router lee la URL → pinta la página correspondiente → la página llama a la API → el proxy redirige al backend.</p>
+</div>
+`;

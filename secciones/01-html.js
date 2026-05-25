@@ -1,0 +1,232 @@
+window.__SECC = window.__SECC || {};
+window.__SECC["html"] = `<h1>HTML y el punto de entrada</h1>
+<p class="subtitulo">Cómo el navegador empieza a ejecutar el proyecto: <code>index.html</code> y <code>main.jsx</code>.</p>
+
+<p class="lead">Toda página web empieza con un fichero HTML. En proyectos React ese fichero es <strong>mínimo</strong>: sólo contiene una caja vacía y un script. React se encarga del resto. En esta sección lo desmenuzamos línea a línea para que sepas qué pasa exactamente cuando alguien escribe la URL en el navegador.</p>
+
+<h2>1. ¿Qué es HTML?</h2>
+<p>HTML (HyperText Markup Language) es un lenguaje de <em>etiquetas</em>. Cada etiqueta representa un trozo de la página: títulos, párrafos, imágenes, formularios… El navegador lee el HTML de arriba abajo y construye un árbol en memoria llamado <strong>DOM</strong> (Document Object Model).</p>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Idea clave</div>
+  <p>El DOM es como un <strong>árbol genealógico</strong> de tu página: <code>html</code> es el abuelo, <code>body</code> es un hijo, dentro hay <code>div</code>, dentro hay <code>p</code>… JavaScript puede manipular ese árbol en vivo: añadir hijos, cambiar texto, etc. Eso es lo que hace React por debajo.</p>
+</div>
+
+<h3>Ejemplo mínimo de HTML</h3>
+<div class="code-wrap">
+  <span class="file-label">ejemplo.html</span>
+<pre><code class="language-html">&lt;!doctype html&gt;
+&lt;html lang="es"&gt;
+  &lt;head&gt;
+    &lt;title&gt;Hola&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;Hola, mundo&lt;/h1&gt;
+    &lt;p&gt;Bienvenido a la web.&lt;/p&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+</div>
+
+<h2>2. El <code>index.html</code> de DaWeb</h2>
+<p>Está en <code>daweb/daweb/index.html</code>. Aquí lo tienes íntegro:</p>
+
+<div class="code-wrap">
+  <span class="file-label">daweb/index.html</span>
+<pre><code class="language-html">&lt;!doctype html&gt;
+&lt;html lang="es"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;link rel="icon" type="image/svg+xml" href="/favicon.svg" /&gt;
+    &lt;link rel="preconnect" href="https://fonts.googleapis.com" /&gt;
+    &lt;link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /&gt;
+    &lt;link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&amp;display=swap" rel="stylesheet" /&gt;
+    &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" /&gt;
+    &lt;title&gt;DaWeb Reventas&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;
+    &lt;script type="module" src="/src/main.jsx"&gt;&lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+</div>
+
+<h3>Línea a línea</h3>
+<table>
+  <tr><th>Línea</th><th>Qué hace</th></tr>
+  <tr><td><code>&lt;!doctype html&gt;</code></td><td>Le dice al navegador "esto es HTML5". Si lo omites, entra en modo "quirks" (raro) que comparte raros bugs antiguos.</td></tr>
+  <tr><td><code>&lt;html lang="es"&gt;</code></td><td>Idioma de la página. Ayuda a buscadores, lectores de pantalla y al corrector ortográfico.</td></tr>
+  <tr><td><code>&lt;meta charset="utf-8"&gt;</code></td><td>Codificación: UTF-8 soporta tildes, eñes, emojis, todo.</td></tr>
+  <tr><td><code>&lt;meta name="viewport" ...&gt;</code></td><td>Imprescindible para móvil: dice que el ancho de la pantalla es el ancho del dispositivo (sin esto el móvil "haría zoom out" automáticamente).</td></tr>
+  <tr><td><code>&lt;link rel="icon" ...&gt;</code></td><td>Favicon: el iconito de la pestaña.</td></tr>
+  <tr><td><code>&lt;link rel="preconnect" ...&gt;</code></td><td>Pista al navegador para abrir conexión con Google Fonts cuanto antes (ahorra unos ms en carga).</td></tr>
+  <tr><td><code>&lt;link href=".../family=Google+Sans+Flex..." /&gt;</code></td><td>Carga la fuente Google Sans Flex desde el CDN de Google.</td></tr>
+  <tr><td><code>&lt;link rel="stylesheet" href=".../bootstrap-icons..." /&gt;</code></td><td>Carga la fuente de iconos Bootstrap Icons (esos <code>&lt;i class="bi bi-..."&gt;</code> que verás).</td></tr>
+  <tr><td><code>&lt;title&gt;DaWeb Reventas&lt;/title&gt;</code></td><td>Texto de la pestaña del navegador.</td></tr>
+  <tr><td><code>&lt;div id="root"&gt;&lt;/div&gt;</code></td><td>⭐ <strong>La caja donde React inyectará toda la web.</strong></td></tr>
+  <tr><td><code>&lt;script type="module" src="/src/main.jsx"&gt;</code></td><td>Carga el JavaScript de entrada. <code>type="module"</code> activa los <em>ES Modules</em>, que permiten usar <code>import</code> / <code>export</code>.</td></tr>
+</table>
+
+<div class="callout tip">
+  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> La idea clave</div>
+  <p>En toda app React, el HTML es así de minúsculo: una <code>div</code> vacía con id <code>root</code> y un script. <strong>Toda la interfaz se construye después con JavaScript</strong>. Esto se llama <strong>SPA</strong> (Single Page Application): una sola página HTML que cambia su contenido sin recargar.</p>
+</div>
+
+<h2>3. El arranque de React: <code>src/main.jsx</code></h2>
+
+<div class="code-wrap">
+  <span class="file-label">src/main.jsx</span>
+<pre><code class="language-jsx">import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import 'bootstrap/dist/css/bootstrap.min.css'
+import './index.css'
+import './theme.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  &lt;StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/StrictMode&gt;,
+)</code></pre>
+</div>
+
+<h3>Línea a línea</h3>
+<ul>
+  <li><code>import { StrictMode } from 'react'</code>: trae el componente <code>StrictMode</code> que avisa de prácticas obsoletas durante el desarrollo.</li>
+  <li><code>import { createRoot } from 'react-dom/client'</code>: <em>react-dom</em> es el puente entre React y el DOM real del navegador. <code>createRoot</code> es el API moderno (React 18+) para iniciar una app.</li>
+  <li><code>import 'bootstrap/...';</code>: importa el CSS de Bootstrap como efecto secundario (no necesita variable).</li>
+  <li><code>import './index.css'</code> y <code>'./theme.css'</code>: cargan los estilos globales y el sistema de colores del proyecto.</li>
+  <li><code>import App from './App.jsx'</code>: trae el componente raíz.</li>
+  <li><code>createRoot(document.getElementById('root')).render(...)</code>: <em>"toma la div con id root y dibuja dentro este árbol de componentes"</em>.</li>
+  <li><code>&lt;StrictMode&gt;&lt;App /&gt;&lt;/StrictMode&gt;</code>: envuelve la app en StrictMode (puro consejo: detecta efectos secundarios mal hechos).</li>
+</ul>
+
+<h3>Flujo completo desde la URL</h3>
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Usuario escribe <code>http://localhost:5173/</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> Vite responde con <code>index.html</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> El navegador lee la etiqueta <code>&lt;script&gt;</code> y descarga <code>/src/main.jsx</code> (Vite lo compila al vuelo).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> <code>main.jsx</code> ejecuta <code>createRoot(...).render(&lt;App /&gt;)</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">5</span> React monta el componente <code>App</code> dentro del <code>div#root</code>. ¡La página aparece!</div>
+</div>
+
+<h2>4. ¿Qué son las "etiquetas con clases" como <code>&lt;i class="bi bi-search"&gt;</code>?</h2>
+<p>El paquete Bootstrap Icons funciona inyectando una fuente: cada clase <code>bi-XXX</code> renderiza un carácter especial que dibuja un icono. Por eso usas <code>&lt;i&gt;</code> (italic) vacío con la clase apropiada.</p>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta</div>
+  <p class="quiz-pregunta">¿Por qué el <code>&lt;div id="root"&gt;</code> está vacío en <code>index.html</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Porque es un placeholder que el diseñador no rellenó.</button>
+    <button class="quiz-opcion" data-correcta="1">Porque React lo rellenará en tiempo de ejecución desde <code>main.jsx</code>.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque el contenido lo añade el servidor backend antes de enviar el HTML.</button>
+    <button class="quiz-opcion" data-correcta="0">Porque por defecto los <code>div</code> se rellenan solos.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Justo: React necesita un nodo del DOM donde montar su árbol de componentes." data-ko="React necesita un punto de anclaje en el DOM real para empezar a pintar."></p>
+</div>
+
+<div class="quiz" data-respondido="0">
+  <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta</div>
+  <p class="quiz-pregunta">¿Para qué sirve <code>type="module"</code> en la etiqueta <code>&lt;script&gt;</code>?</p>
+  <div class="quiz-opciones">
+    <button class="quiz-opcion" data-correcta="0">Para que el script se cargue en paralelo y bloquee el render.</button>
+    <button class="quiz-opcion" data-correcta="1">Para activar los ES Modules y poder usar <code>import</code> / <code>export</code>.</button>
+    <button class="quiz-opcion" data-correcta="0">Para que el script sea visible en Google Analytics.</button>
+    <button class="quiz-opcion" data-correcta="0">Para indicar al navegador que es un módulo de TypeScript.</button>
+  </div>
+  <p class="quiz-feedback" data-ok="Eso es. Sin module, los import/export dan error en el navegador." data-ko="Pista: en un script clásico, escribir 'import' lanza SyntaxError."></p>
+</div>
+
+<h2>5. Ejercicios</h2>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 1</span>
+    <span>Cambiar el título de la pestaña</span>
+    <span class="nivel">★ Muy fácil</span>
+  </div>
+  <ol>
+    <li>Abre <code>daweb/index.html</code>.</li>
+    <li>Cambia <code>&lt;title&gt;DaWeb Reventas&lt;/title&gt;</code> por <code>&lt;title&gt;Marketplace de prueba&lt;/title&gt;</code>.</li>
+    <li>Guarda y mira la pestaña del navegador.</li>
+  </ol>
+  <details>
+    <summary>Si no se actualiza</summary>
+    <p>Vite recarga el HTML completo al modificarlo (no es HMR, recarga la pestaña). Si no aparece el nuevo título, recarga manualmente con <span class="kbd">Ctrl</span>+<span class="kbd">R</span>.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 2</span>
+    <span>Añadir una fuente de Google adicional</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <ol>
+    <li>En <code>index.html</code>, añade después del <code>&lt;link&gt;</code> de Google Sans Flex otra fuente: <code>&lt;link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;display=swap" rel="stylesheet" /&gt;</code></li>
+    <li>En <code>src/theme.css</code>, cambia <code>--sans</code> (si lo encuentras) o añade en <code>body</code>: <code>font-family: 'Inter', sans-serif;</code> y observa el cambio.</li>
+  </ol>
+  <details>
+    <summary>Pista</summary>
+    <p>Las fuentes se cargan en HTML pero se aplican desde CSS con <code>font-family: 'Nombre', fallback;</code>.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 3</span>
+    <span>Romper React a propósito</span>
+    <span class="nivel">★★ Intermedio</span>
+  </div>
+  <ol>
+    <li>En <code>index.html</code>, cambia <code>&lt;div id="root"&gt;&lt;/div&gt;</code> por <code>&lt;div id="raiz"&gt;&lt;/div&gt;</code>.</li>
+    <li>Guarda. La página estará en blanco.</li>
+    <li>Abre la consola (F12 → Console) y verás un error tipo <code>Cannot read properties of null (reading ...')</code> porque <code>document.getElementById('root')</code> devuelve <code>null</code>.</li>
+    <li>Deshaz el cambio.</li>
+  </ol>
+  <details>
+    <summary>¿Qué hemos aprendido?</summary>
+    <p>El id del div en <code>index.html</code> tiene que coincidir <em>exactamente</em> con el <code>getElementById</code> en <code>main.jsx</code>. Es el único acoplamiento entre HTML y JS.</p>
+  </details>
+</div>
+
+<div class="ejercicio">
+  <div class="ejercicio-cabecera">
+    <span class="badge-ejercicio">Ejercicio 4</span>
+    <span>Crear contenido "no-React" antes de que cargue</span>
+    <span class="nivel">★★★ Avanzado</span>
+  </div>
+  <p>Pon dentro del <code>&lt;div id="root"&gt;</code> un texto: <code>&lt;p&gt;Cargando…&lt;/p&gt;</code>. Recarga la página. ¿Qué ves? ¿Por qué desaparece?</p>
+  <details>
+    <summary>Respuesta</summary>
+    <p>Se ve "Cargando…" durante una fracción de segundo y desaparece. React, al renderizar, <strong>sustituye</strong> todo el contenido del <code>#root</code> por su propio árbol. Esta técnica se usa como <em>splash screen</em> para mostrar algo mientras el JS carga.</p>
+  </details>
+</div>
+
+<h2>6. Probar JavaScript en el navegador</h2>
+<p>Antes de pasar a la siguiente sección, comprueba que entiendes que JS se ejecuta en el navegador. Abre F12 → Console y prueba:</p>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Playground (Ctrl+Enter para ejecutar)</div>
+  <textarea spellcheck="false">// Pulsa "Ejecutar" o Ctrl+Enter
+const titulo = document.title;
+console.log('La pestaña se titula:', titulo);
+
+// Calcula la longitud del documento HTML
+console.log('Caracteres del HTML:', document.documentElement.outerHTML.length);</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>
+
+<div class="callout tip">
+  <div class="callout-titulo"><i class="bi bi-lightbulb"></i> Para la entrevista</div>
+  <p>Si te preguntan "¿qué hay en el HTML del proyecto?", respuesta corta: <em>"Sólo lo justo: metas, links a fuentes y CSS, un div con id root y el script de entrada main.jsx. Todo lo demás lo monta React en cliente."</em></p>
+</div>
+`;
