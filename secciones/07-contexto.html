@@ -309,7 +309,209 @@ function Header() {
   <p>Mientras el popup está en github.com, el navegador BLOQUEA el acceso (política de mismo origen). El try/catch atrapa esa excepción silenciosamente; el intervalo vuelve a intentar al cabo de 400ms. Cuando el popup vuelve a tu dominio (tras la redirección del backend), el acceso desbloquea y leemos la ruta.</p>
 </div>
 
-<h2>10. Quiz</h2>
+<h2>10. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>Context y el problema de re-renders en cascada</h3>
+<p>Cada vez que el <code>value</code> del Provider cambia, <strong>todos</strong> los componentes que llaman a <code>useContext(AuthContext)</code> se re-renderizan, sin importar si la parte del valor que usan cambió.</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// Cuando actualizarPerfil hace setUsuario({...usuario, nombre: 'Ana'}):
+// → Crea un NUEVO objeto → el value del Provider cambia
+// → TODOS los consumidores de useAuth() re-renderizan:
+//   Header (usa usuario, esAdmin, logout)
+//   RutaProtegida (usa usuario, esAdmin)
+//   Cualquier página con useAuth()</code></pre>
+</div>
+
+<p>En DaWeb esto es aceptable: los re-renders son baratos (componentes pequeños) y ocurren poco (solo en login/logout/update). En apps grandes con contextos muy cambiantes se usarían técnicas como <code>useMemo</code> para el <code>value</code> o dividir el contexto en múltiples providers más específicos.</p>
+
+<h3>localStorage vs sessionStorage vs cookies: la guerra de seguridad</h3>
+
+<table>
+  <tr><th></th><th>localStorage</th><th>sessionStorage</th><th>Cookie HttpOnly</th></tr>
+  <tr><td><strong>Persistencia</strong></td><td>Hasta que se borre</td><td>Hasta cerrar la pestaña</td><td>Según <code>expires</code></td></tr>
+  <tr><td><strong>Accesible desde JS</strong></td><td>Sí</td><td>Sí</td><td><strong>No</strong> (HttpOnly)</td></tr>
+  <tr><td><strong>Se envía al servidor</strong></td><td>No (hay que añadirlo al header)</td><td>No</td><td>Automáticamente en cada petición</td></tr>
+  <tr><td><strong>Vulnerable a XSS</strong></td><td><strong>Sí</strong></td><td><strong>Sí</strong></td><td><strong>No</strong></td></tr>
+  <tr><td><strong>DaWeb usa</strong></td><td>✓ (clave: <code>arso_token</code>)</td><td></td><td></td></tr>
+</table>
+
+<p>DaWeb guarda el token en <code>localStorage</code>. Si hubiera un ataque XSS (script malicioso inyectado en la página), podría ejecutar <code>localStorage.getItem('arso_token')</code> y robar el token. La alternativa más segura serían cookies <code>HttpOnly</code>, que son inaccesibles para JavaScript. Sin embargo, eso requeriría:</p>
+<ul>
+  <li>El backend establece la cookie: <code>Set-Cookie: token=...; HttpOnly; SameSite=Strict</code>.</li>
+  <li>El navegador la incluye automáticamente en cada petición.</li>
+  <li>CORS necesita <code>credentials: 'include'</code> en el fetch y <code>Access-Control-Allow-Credentials: true</code> en el backend (con origen explícito, no <code>*</code>).</li>
+</ul>
+<p>DaWeb optó por localStorage por simplicidad — decisión aceptable para un proyecto académico pero con riesgo XSS conocido.</p>
+
+<h3>OAuth2 Authorization Code Flow: el protocolo completo</h3>
+<p>OAuth2 es un protocolo de <strong>autorización</strong>. GitHub actúa como proveedor de identidad. El flujo completo:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> El frontend abre un popup a <code>/oauth2/authorization/github</code> (proxied al backend ArSo).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> ArSo genera un parámetro <code>state</code> aleatorio (protección CSRF) y redirige el popup a <code>github.com/login/oauth/authorize?client_id=X&amp;state=Z&amp;redirect_uri=Y</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> GitHub muestra la pantalla de autorización. El usuario acepta.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> GitHub redirige el popup a la <code>redirect_uri</code> del backend con <code>?code=TEMPORAL&amp;state=Z</code>. El code dura ~10 minutos y es de <strong>un solo uso</strong>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">5</span> ArSo verifica que <code>state</code> coincide (protección CSRF) y hace un POST server-to-server a <code>github.com/login/oauth/access_token</code> con el code. El code nunca sale del servidor.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">6</span> GitHub devuelve un <code>access_token</code>. ArSo lo usa para obtener los datos del usuario de la API de GitHub.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">7</span> ArSo crea un usuario en su base de datos (si no existía) y genera su propio JWT. Lo escribe en el body del popup.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">8</span> El <code>setInterval</code> del frontend detecta que el popup está de vuelta en el dominio propio, lee el JWT del body, llama a <code>aceptarToken</code> y cierra el popup.</div>
+</div>
+
+<p>El <code>code</code> de GitHub es de un solo uso y de corta vida por diseño: si alguien intercepta la URL de redirección, el código ya está consumido por ArSo y es inútil.</p>
+
+<h3>JWT: por qué es imposible revocar un token antes de que expire</h3>
+<p>El JWT es <strong>stateless</strong>: el servidor no guarda nada. Solo verifica la firma en cada petición. Esta es su gran ventaja y su gran limitación:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Ventaja: escalabilidad</h4>
+    <p>Cualquier instancia del servidor puede verificar cualquier token sin consultar una base de datos. Perfecto para sistemas distribuidos con varios servidores.</p>
+  </div>
+  <div class="tarjeta">
+    <h4>Limitación: no se puede revocar</h4>
+    <p>Si el usuario hace logout, el frontend borra el token del localStorage. Pero si alguien robó ese token antes, sigue siendo válido hasta que caduque (<code>exp</code>). Solo cambiar la clave secreta del servidor invalida todos los tokens existentes.</p>
+  </div>
+</div>
+
+<div class="code-wrap">
+  <span class="file-label">escenario de problema real</span>
+<pre><code class="language-text">1. Usuario admin se logea. Obtiene JWT con exp = ahora + 24h.
+2. Admin abusa de sus privilegios. El gestor quiere revocarle acceso.
+3. El gestor cambia el rol en la BD → 'USUARIO'.
+4. Pero el JWT sigue diciendo "ADMINISTRADOR" en su payload.
+5. El admin puede seguir haciendo peticiones hasta las 24h.
+
+Solución real (no en DaWeb):
+- Tokens de corta vida (15 min) + refresh tokens
+- O lista negra de tokens revocados en Redis</code></pre>
+</div>
+
+<h3><code>usuarioDesdeToken</code> como lazy initializer: detalles técnicos</h3>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Con paréntesis (incorrecto)</h4>
+<pre><code class="language-jsx">// usuarioDesdeToken() se llama en CADA render
+// El resultado se descarta (solo se usa en el primer render)
+// Lee localStorage y parsea JWT innecesariamente en cada re-render
+const [usuario, setUsuario] =
+  useState(usuarioDesdeToken());</code></pre>
+  </div>
+  <div class="tarjeta">
+    <h4>Sin paréntesis (correcto)</h4>
+<pre><code class="language-jsx">// Se pasa la REFERENCIA a la función
+// React la llama UNA SOLA VEZ (primer render)
+// En renders siguientes, React usa el estado guardado
+const [usuario, setUsuario] =
+  useState(usuarioDesdeToken);</code></pre>
+  </div>
+</div>
+
+<p>Esto se llama <strong>lazy initialization</strong> de <code>useState</code>. Es importante porque <code>usuarioDesdeToken</code> lee de <code>localStorage</code> y parsea un JWT — operaciones rápidas pero que no tienen sentido repetir en cada re-render del AuthProvider.</p>
+
+<h3>Diagrama de secuencia: login tradicional</h3>
+<p>Quién llama a quién cuando el usuario pulsa "Iniciar sesión" con correo y clave:</p>
+
+<div class="code-wrap">
+  <span class="file-label">login tradicional — interacción entre módulos</span>
+<pre><code class="language-text">Usuario   Login.jsx   AuthProvider   auth.js    client.js  localStorage  Vite proxy   Backend
+  │          │             │            │           │             │            │           │
+  │ submit ─▶│ e.preventDefault()       │           │             │            │           │
+  │          │ login(c,k) ─▶            │           │             │            │           │
+  │          │             │ authApi.   │           │             │            │           │
+  │          │             │  login()──▶│           │             │            │           │
+  │          │             │            │ request──▶│             │            │           │
+  │          │             │            │           │ fetch ──────────────────▶│           │
+  │          │             │            │           │             │            │ POST /auth│
+  │          │             │            │           │             │            │           │ validar
+  │          │             │            │           │             │            │           │ firmar JWT
+  │          │             │            │           │             │            │ ◀── 200 ──│
+  │          │             │            │           │ ◀── {token} │            │           │
+  │          │             │            │ setToken(token) ────────▶ guardado   │            │
+  │          │             │            │ ◀── datos │             │            │           │
+  │          │             │ usuarioDesdeToken()                  │            │           │
+  │          │             │   ├── getToken() ◀──────────── lee   │            │           │
+  │          │             │   └── decodeJwt(t) → claims          │            │           │
+  │          │             │ setUsuario(u) ─── DISPARA re-render  │            │           │
+  │          │             │   de TODOS los consumidores useAuth()│            │           │
+  │          │ ◀── {ok}    │   (Header, RutaProtegida...)         │            │           │
+  │          │ navegar('/')│                                      │            │           │
+  │ home con◀│             │                                      │            │           │
+  │ nombre    │            │                                      │            │           │</code></pre>
+</div>
+
+<h3>Diagrama de secuencia: OAuth2 con GitHub</h3>
+<p>El popup, el <code>setInterval</code>, las redirecciones cross-origin y cómo el frontend "ve" el JWT al final:</p>
+
+<div class="code-wrap">
+  <span class="file-label">login OAuth2 — popup + backend + GitHub</span>
+<pre><code class="language-text">Login.jsx      popup (window)     Vite proxy     Backend ArSo     GitHub
+   │                │                  │              │              │
+   │ window.open(   │                  │              │              │
+   │ /oauth2/auth.. │ abre URL ───────▶│              │              │
+   │ ──────────────▶│                  │ ────────────▶│              │
+   │                │                  │              │ genera state │
+   │                │                  │              │ + redirect   │
+   │                │ ◀── 302 a github.com/login/oauth/authorize    │
+   │                │ ───────────────────────────────────────────── ▶│
+   │                │                  │              │              │ usuario
+   │                │                  │              │              │ autoriza
+   │                │ ◀── 302 a backend/login/oauth2/code/github?code=X
+   │                │ ────────────────▶│              │              │
+   │                │                  │ ────────────▶│              │
+   │                │                  │              │ verifica state
+   │                │                  │              │ POST con code│
+   │                │                  │              │ ───────────▶ │
+   │                │                  │              │ ◀── access_tok
+   │                │                  │              │ GET user data│
+   │                │                  │              │ ───────────▶ │
+   │                │                  │              │ ◀── usuario  │
+   │                │                  │              │ crea/actualiza
+   │                │                  │              │ usuario en DB│
+   │                │                  │              │ genera JWT   │
+   │                │ ◀── HTML con {token:"eyJ..."} en body         │
+   │                │                  │              │              │
+ setInterval(400ms):│                  │              │              │
+   ├── try {popup.location.pathname} catch {} ── (mientras está en github.com falla)
+   ├── try { ... } catch {} ── (mientras carga backend, sigue fallando)
+   ├── ruta === '/login/oauth2/code/github' → ¡llegó!                │
+   ├── texto = popup.document.body.innerText                         │
+   ├── datos = JSON.parse(texto)                                     │
+   ├── aceptarToken(datos.token) ──▶ AuthContext.setUsuario          │
+   └── popup.close()                                                  │</code></pre>
+</div>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Por qué no se puede simplificar</div>
+  <p>El popup es necesario porque la autenticación de GitHub <em>no se puede</em> hacer en un iframe (GitHub envía <code>X-Frame-Options: DENY</code>). El <code>setInterval</code> es necesario porque el navegador NO emite ningún evento cuando un popup cambia de URL en otro origen — la única forma de saberlo es preguntar periódicamente.</p>
+</div>
+
+
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué pasa si el usuario borra el token de localStorage mientras la app está abierta?"</strong> — La app no se entera en tiempo real. El estado de React sigue mostrando al usuario como logueado. La próxima petición a la API devolverá 401 (porque el token ya no se incluye en el header). Ese error se muestra en la página pero no hay logout automático. Para detectarlo habría que usar <code>window.addEventListener('storage', ...)</code> que se dispara cuando otra pestaña modifica el localStorage.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Puede un atacante modificar el payload del JWT para darse más permisos?"</strong> — No. Puede decodificar el payload (Base64URL es codificación, no cifrado) y leerlo, pero si modifica cualquier bit, la firma criptográfica deja de coincidir. El backend recalculará la firma y la comparará — si no coinciden, rechaza con 401. Solo quien tenga la clave secreta del servidor puede generar una firma válida.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué hay un <code>try/catch</code> al leer <code>popup.location</code> durante el OAuth?"</strong> — Mientras el popup está en <code>github.com</code> (otro origen), el navegador aplica la Same-Origin Policy: leer <code>popup.location.pathname</code> lanza una excepción de seguridad. El <code>try/catch</code> la captura silenciosamente. El <code>setInterval</code> sigue intentando cada 400ms. Cuando el popup vuelve al dominio propio (tras la redirección del backend), el acceso se desbloquea y la lectura funciona.</p>
+</div>
+
+<h2>11. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -335,7 +537,7 @@ function Header() {
   <p class="quiz-feedback" data-ok="Correcto. Hasta que el token caduque (exp) o llames a logout()." data-ko="El token está en localStorage; sobrevive a cierres. Sólo se borra si pasa el exp o llamas logout."></p>
 </div>
 
-<h2>11. Ejercicios</h2>
+<h2>12. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">

@@ -192,7 +192,152 @@ export default defineConfig({
   <p>En producción no hay Vite. Para que <code>/api/...</code> funcione hay dos opciones: desplegar frontend y backend bajo el MISMO dominio (con Nginx que enrute <code>/api</code> al backend), o cambiar <code>API_BASE</code> al dominio real del backend Y configurar CORS allí.</p>
 </div>
 
-<h2>9. Quiz</h2>
+<h2>9. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>¿Qué hace realmente un bundler?</h3>
+<p>El problema que soluciona: si tu app tiene 100 archivos JavaScript y cada uno hace <code>import</code> de otros, el navegador tendría que hacer 100 peticiones HTTP independientes para cargarlos. Cada petición tiene overhead (DNS, TCP, headers). Un bundler los une en uno o pocos archivos:</p>
+
+<div class="code-wrap">
+  <span class="file-label">sin bundler vs con bundler</span>
+<pre><code class="language-text">Sin bundler (100 peticiones):      Con bundler — dist/ (2 peticiones):
+main.jsx                           assets/index-AbCd12.js  (app completa)
+├── App.jsx                        assets/vendor-XyZ34.js  (React + librerías)
+├── Header.jsx
+├── Productos.jsx                  1-2 peticiones en lugar de 100+
+└── ...                            Código minificado y optimizado</code></pre>
+</div>
+
+<p>Vite en desarrollo NO hace bundling: usa los ES Modules nativos del navegador. Cada archivo se sirve por separado pero Vite los transforma al vuelo con esbuild (escrito en Go, 10-100× más rápido que los transformadores JS). Esto hace que el arranque sea instantáneo.</p>
+
+<h3>Tree shaking: el bundler elimina lo que no usas</h3>
+<p>Si importas solo lo que necesitas, el bundler puede eliminar el resto de la librería del bundle final:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Import específico (tree shakeable)</h4>
+<pre><code class="language-jsx">// Solo Button y Card entran en el bundle
+import { Button, Card } from 'react-bootstrap';
+
+// Solo el icono BsSearch entra
+import { BsSearch } from 'react-icons/bs';</code></pre>
+  </div>
+  <div class="tarjeta">
+    <h4>Import de todo (sin tree shaking)</h4>
+<pre><code class="language-jsx">// Toda react-bootstrap entra (mucho más grande)
+import ReactBootstrap from 'react-bootstrap';
+
+// Todos los iconos entran
+import * as Icons from 'react-icons/bs';</code></pre>
+  </div>
+</div>
+
+<p>DaWeb usa imports nombrados de <code>react-bootstrap</code> y <code>react-icons/bs</code> precisamente para beneficiarse de tree shaking. El bundle final contiene solo los componentes e iconos que se usan realmente.</p>
+
+<h3>Hot Module Replacement (HMR): cómo funciona internamente</h3>
+<p>Cuando guardas un cambio en un <code>.jsx</code>:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Vite detecta el cambio mediante el sistema de ficheros.</div>
+  <div class="flujo-paso"><span class="num">2</span> Recompila <strong>solo ese módulo</strong> (y sus dependientes directos), no toda la app.</div>
+  <div class="flujo-paso"><span class="num">3</span> Vite envía el módulo actualizado al navegador por <strong>WebSocket</strong> (visible en DevTools → Network → WS).</div>
+  <div class="flujo-paso"><span class="num">4</span> El plugin React (<code>@vitejs/plugin-react</code>) usa React Fast Refresh para actualizar el componente <strong>sin desmontar el árbol</strong>.</div>
+  <div class="flujo-paso"><span class="num">5</span> El estado del componente se preserva. Un contador en 5 sigue en 5 tras cambiar el estilo del botón.</div>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Cuándo el HMR NO puede preservar el estado</div>
+  <p>Si cambias la <em>estructura</em> del estado (añades/quitas un <code>useState</code>, cambias el tipo de un valor), React Fast Refresh tiene que reiniciar el componente para que el estado sea coherente con el nuevo código. Lo verás como una recarga parcial de ese componente específico.</p>
+</div>
+
+<h3>Variables de entorno en Vite: la regla <code>VITE_</code></h3>
+<p>Vite expone variables de entorno al cliente solo si empiezan por <code>VITE_</code>. Variables sin ese prefijo son solo del servidor (proceso Node) y no llegan al bundle del navegador:</p>
+
+<div class="code-wrap">
+<pre><code class="language-bash"># .env
+VITE_API_URL=/api       # se expone al cliente
+DB_PASSWORD=secreto     # NO se expone (no empieza por VITE_)</code></pre>
+</div>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// En cualquier componente o módulo JS
+const base   = import.meta.env.VITE_API_URL;  // '/api'
+const esDev  = import.meta.env.DEV;            // true en npm run dev
+const esProd = import.meta.env.PROD;           // true en npm run build</code></pre>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Secretos en variables VITE_</div>
+  <p>Todo lo que empieza por <code>VITE_</code> se incluye literalmente en el bundle JavaScript. Cualquiera puede abrir DevTools → Sources y buscar el valor. <strong>Nunca poner claves API, contraseñas o secrets</strong> en variables <code>VITE_</code>. Solo URLs y configuración pública.</p>
+</div>
+
+<h3><code>npm run build</code> paso a paso</h3>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Vite lee <code>vite.config.js</code> para la configuración (plugins, aliases, etc.).</div>
+  <div class="flujo-paso"><span class="num">2</span> Empieza desde el entry point (<code>index.html</code> → <code>src/main.jsx</code>) y sigue todos los imports recursivamente (el "grafo de módulos").</div>
+  <div class="flujo-paso"><span class="num">3</span> Transforma JSX → JS estándar (esbuild, extremadamente rápido).</div>
+  <div class="flujo-paso"><span class="num">4</span> Aplica tree shaking: elimina exports no usados.</div>
+  <div class="flujo-paso"><span class="num">5</span> Minifica: elimina espacios, acorta nombres de variables, comprime strings.</div>
+  <div class="flujo-paso"><span class="num">6</span> Genera hash de contenido en el nombre del archivo (<code>index-AbCd12.js</code>). Si el contenido no cambia entre builds, el hash tampoco → el navegador puede cachear indefinidamente.</div>
+  <div class="flujo-paso"><span class="num">7</span> Escribe todo en <code>dist/</code>.</div>
+</div>
+
+<h3>El proxy NO existe en producción: las dos soluciones</h3>
+<p>El proxy de Vite (<code>vite.config.js</code>) solo funciona con <code>npm run dev</code>. En producción el frontend es una carpeta estática de archivos, sin lógica de proxy. Para que <code>/api/...</code> funcione hay dos opciones:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Opción 1: Nginx como proxy inverso</h4>
+<pre><code class="language-nginx">server {
+  listen 80;
+  root /var/www/daweb/dist;
+  # SPA: cualquier ruta → index.html
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+  # Proxy de API al backend
+  location /api/ {
+    proxy_pass http://localhost:8090/;
+  }
+}</code></pre>
+    <p>Frontend y backend en el mismo dominio. El navegador nunca ve el cambio de origen. Sin CORS.</p>
+  </div>
+  <div class="tarjeta">
+    <h4>Opción 2: CORS habilitado en el backend</h4>
+<pre><code class="language-text">Frontend en:
+  https://daweb.ejemplo.com
+
+Backend en:
+  https://api.daweb.ejemplo.com
+
+Backend añade:
+  Access-Control-Allow-Origin:
+    https://daweb.ejemplo.com
+  Access-Control-Allow-Headers:
+    Authorization, Content-Type
+
+Frontend cambia API_BASE:
+  'https://api.daweb.ejemplo.com'</code></pre>
+    <p>Flexible para microservicios. Requiere configuración CORS explícita en el backend.</p>
+  </div>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué pasaría si subieras la carpeta <code>dist/</code> tal cual a un servidor sin configurar?"</strong> — Las páginas estáticas (<code>/</code>, <code>/login</code>) funcionarían si el usuario navega desde la home. Pero si recarga en <code>/productos/42</code>, el servidor busca el archivo <code>/productos/42</code>, no lo encuentra y devuelve 404. Además, todas las llamadas a <code>/api/...</code> fallarían porque no hay proxy que las redirija al backend.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué Vite es tan rápido en desarrollo comparado con webpack?"</strong> — Vite NO empaqueta en desarrollo. Sirve los módulos ES nativos directamente al navegador, uno por uno, transformando JSX al vuelo con esbuild (escrito en Go, 10-100× más rápido que los transformadores JS). Webpack lee el proyecto entero y genera un bundle antes de servir nada. En proyectos grandes, Vite arranca en &lt;1s; webpack puede tardar 30-60s.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué diferencia hay entre <code>npm run dev</code> y <code>npm run preview</code>?"</strong> — <code>dev</code> arranca Vite con HMR, source maps y proxy; los módulos se sirven sin bundling. <code>preview</code> sirve la carpeta <code>dist/</code> como un servidor estático sin HMR ni proxy — simula el entorno de producción. Si algo falla en <code>preview</code> pero no en <code>dev</code>, es un bug específico de la build (tree shaking agresivo, variables de entorno mal configuradas, etc.).</p>
+</div>
+
+<h2>10. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -218,7 +363,7 @@ export default defineConfig({
   <p class="quiz-feedback" data-ok="Bien. El backend no sabe nada de '/api'; ese prefijo es sólo una convención del frontend." data-ko="La regex /^\\\\/api/ busca el prefijo /api al principio y lo elimina."></p>
 </div>
 
-<h2>10. Ejercicios</h2>
+<h2>11. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">

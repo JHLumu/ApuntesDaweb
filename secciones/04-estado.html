@@ -294,7 +294,125 @@ console.log('¿Misma ref?', persona === cambiada);</textarea>
   <div class="try-it-salida"></div>
 </div>
 
-<h2>8. Quiz</h2>
+<h2>8. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>El modelo "snapshot": por qué setState no actualiza inmediatamente</h3>
+<p>React renderiza un componente como una "foto" (snapshot) del estado en ese momento. Dentro de ese render, el valor de cada variable de estado está <strong>congelado</strong>. Llamar a <code>setX</code> no actualiza <code>x</code> dentro del render actual; le dice a React "en el próximo render, usa este nuevo valor".</p>
+
+<div class="code-wrap">
+  <span class="file-label">La trampa clásica del snapshot</span>
+<pre><code class="language-jsx">// ❌ Esto NO suma 3 al contador
+function sumarTres() {
+  setContador(contador + 1);  // encola: nuevo valor = 0+1 = 1
+  setContador(contador + 1);  // encola: nuevo valor = 0+1 = 1 (contador sigue siendo 0!)
+  setContador(contador + 1);  // encola: nuevo valor = 0+1 = 1
+}
+// Resultado: el contador pasa a 1, no a 3.
+
+// ✅ CORRECTO: usa la forma funcional que recibe el estado ACTUAL
+function sumarTres() {
+  setContador(prev => prev + 1);  // encola: nuevo = prev+1
+  setContador(prev => prev + 1);  // encola: nuevo = (prev+1)+1
+  setContador(prev => prev + 1);  // encola: nuevo = (prev+1+1)+1
+}
+// Resultado: el contador pasa a 3.</code></pre>
+</div>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> La forma funcional en el proyecto</div>
+  <p>En <code>Productos.jsx</code>, cuando se sincroniza con la URL: <code>setFiltros((prev) => ({ ...prev, descripcion: descripcionUrl }))</code>. Se usa la forma funcional <code>prev => ...</code> para asegurarse de que el spread usa el filtro más reciente, no el del snapshot anterior.</p>
+</div>
+
+<h3>State batching en React 18</h3>
+<p>A partir de React 18, si llamas a varios <code>setState</code> dentro del mismo event handler, React los agrupa y sólo hace <strong>un solo re-render</strong> con todos los cambios aplicados. Esto se llama "batching automático".</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// En el handler del submit de Login.jsx:
+const enviar = async (e) => {
+  e.preventDefault();
+  setError('');           // no re-renderiza aún
+  setEnviando(true);      // no re-renderiza aún
+  // React agrupa estas dos en UN solo re-render
+  const res = await login(correo, clave);
+  setEnviando(false);     // no re-renderiza aún
+  if (res.ok) navegar('/');
+  else setError(res.error); // no re-renderiza aún
+  // Al final del handler, React hace UN solo re-render con ambos cambios
+};</code></pre>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Antes de React 18</div>
+  <p>En React 17 y anteriores, el batching sólo ocurría en event handlers sintéticos de React. Dentro de <code>setTimeout</code>, <code>fetch</code> callbacks o Promises, cada <code>setState</code> disparaba un re-render separado. React 18 resuelve esto con "Automatic Batching".</p>
+</div>
+
+<h3>El stale closure problem: el bug más difícil de ver con useEffect</h3>
+<p>Cuando un <code>useEffect</code> captura una variable en el momento de crearse, si esa variable cambia después, el efecto sigue viendo el valor <em>antiguo</em> (el del closure, que está "rancio" — stale).</p>
+
+<div class="code-wrap">
+  <span class="file-label">Stale closure — ejemplo del problema</span>
+<pre><code class="language-jsx">// ❌ Bug: filtros en el efecto es siempre el valor inicial
+useEffect(() => {
+  productosApi.listarProductos(filtros)  // filtros SIEMPRE es el valor inicial
+    .then(setProductos);
+}, []);  // ← array vacío: el efecto no se re-ejecuta cuando filtros cambia
+
+// ✅ Correcto: filtros en las dependencias
+useEffect(() => {
+  productosApi.listarProductos(filtros)
+    .then(setProductos);
+}, [filtros]);  // ← el efecto se re-ejecuta cada vez que filtros cambia</code></pre>
+</div>
+
+<p>En DaWeb, el efecto de carga de productos depende de <code>[filtros, page]</code>. Si olvidaras incluir <code>filtros</code>, cambiar los filtros no recargaría los productos — el efecto usaría siempre los filtros del momento en que se creó el closure (los filtros iniciales vacíos).</p>
+
+<h3>Lazy initialization de useState: cuándo y por qué</h3>
+<p>Hay dos formas de pasar el valor inicial a <code>useState</code>:</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// Forma 1: valor directo
+const [usuario, setUsuario] = useState(usuarioDesdeToken());
+// usuarioDesdeToken() se llama en CADA render del componente
+// (aunque React descarte el resultado después del primero)
+// Problema: parsear el JWT es una operación costosa
+
+// Forma 2: función lazy (referencia, sin paréntesis)
+const [usuario, setUsuario] = useState(usuarioDesdeToken);
+// React llama a usuarioDesdeToken() UNA SOLA VEZ, en el primer render
+// En los siguientes renders, ignora el initializer completamente</code></pre>
+</div>
+
+<p>En <code>AuthContext.jsx</code> se usa la Forma 2: <code>useState(usuarioDesdeToken)</code>. Si se usara la Forma 1, cada vez que <code>AuthProvider</code> re-renderizara (por ejemplo, al cambiar el idioma), llamaría a <code>usuarioDesdeToken()</code> innecesariamente (parsear JWT, acceder a localStorage). Con la Forma 2, eso ocurre sólo al montar.</p>
+
+<h3>useRef vs useState: cuándo cada uno</h3>
+<table>
+  <tr><th>Característica</th><th><code>useState</code></th><th><code>useRef</code></th></tr>
+  <tr><td>Cambiar el valor</td><td><code>setValor(nuevo)</code></td><td><code>ref.current = nuevo</code></td></tr>
+  <tr><td>Dispara re-render</td><td><strong>Sí</strong></td><td><strong>No</strong></td></tr>
+  <tr><td>Persiste entre renders</td><td>Sí</td><td>Sí</td></tr>
+  <tr><td>Cuándo usar</td><td>Datos que la UI necesita mostrar</td><td>Timers, IDs ya procesados, referencias al DOM</td></tr>
+</table>
+
+<p>En <code>Login.jsx</code>, <code>intervaloRef</code> es un <code>useRef</code> porque guardar/limpiar el ID del intervalo no debe disparar un re-render. Si fuera <code>useState</code>, cada vez que se asignara el ID del intervalo, React re-renderizaría el formulario de login innecesariamente.</p>
+
+<h3>Preguntas trampa del entrevistador</h3>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué no puedes hacer async el callback de useEffect?"</div>
+  <p><strong>Respuesta</strong>: <code>useEffect</code> espera que su callback devuelva <code>undefined</code> o una función de limpieza. Una función <code>async</code> siempre devuelve una Promise, no una función de limpieza. React no sabe qué hacer con una Promise aquí y lo ignora, lo que puede causar memory leaks. La solución: definir una función <code>async</code> interna y llamarla inmediatamente, o usar <code>.then()</code> en el callback síncrono.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si haces <code>datos.nombre = 'Ana'; setDatos(datos)</code>?"</div>
+  <p><strong>Respuesta</strong>: React no re-renderiza. React compara el nuevo estado con el anterior por referencia (<code>Object.is</code>). Como mutaste el objeto existente, la referencia es la misma. React detecta que el estado "no cambió" y omite el render. El valor está mutado en memoria, pero la UI no se actualiza. Por eso siempre <code>{ ...datos, nombre: 'Ana' }</code>: crea un objeto nuevo con referencia diferente.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué son las 'reglas de los hooks' y por qué existen?"</div>
+  <p><strong>Reglas</strong>: (1) Sólo en componentes o custom hooks. (2) Siempre en el nivel superior (no dentro de if/for). <strong>Por qué</strong>: React no asocia los hooks por nombre, sino por <em>orden de llamada</em>. En cada render, el primer hook es el estado #0, el segundo es el #1, etc. Si pones un hook dentro de un <code>if</code>, en un render puede existir (posición 3) y en otro no (posición 3 pasa a ser otro hook) — React tendría los estados mezclados.</p>
+</div>
+
+<h2>9. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>

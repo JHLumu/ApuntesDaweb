@@ -117,6 +117,84 @@ createRoot(document.getElementById('root')).render(
 <h2>4. ¿Qué son las "etiquetas con clases" como <code>&lt;i class="bi bi-search"&gt;</code>?</h2>
 <p>El paquete Bootstrap Icons funciona inyectando una fuente: cada clase <code>bi-XXX</code> renderiza un carácter especial que dibuja un icono. Por eso usas <code>&lt;i&gt;</code> (italic) vacío con la clase apropiada.</p>
 
+<h2>5. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>El pipeline de renderizado del navegador paso a paso</h3>
+<p>Cuando el navegador recibe el HTML del servidor, no lo muestra directamente. Pasa por un pipeline complejo:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> <strong>HTML parsing</strong>: el parser lee el HTML de arriba abajo y construye el árbol DOM (Document Object Model) — una estructura de objetos JavaScript en memoria. Cada etiqueta es un nodo.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> <strong>Recursos bloqueantes</strong>: si el parser encuentra un <code>&lt;script&gt;</code> sin <code>defer</code>/<code>async</code>, <em>detiene</em> el parsing, descarga el script y lo ejecuta. Por eso los scripts sin defer deben ir al final del body o usar defer.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> <strong>CSS parsing</strong>: el CSSOM (CSS Object Model) se construye en paralelo con el DOM.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> <strong>Render Tree</strong>: DOM + CSSOM = árbol de lo que realmente se dibuja (excluye <code>display:none</code>, <code>&lt;head&gt;</code>, etc.).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">5</span> <strong>Layout</strong>: calcula posición y tamaño de cada elemento.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">6</span> <strong>Paint</strong>: dibuja píxeles en pantalla.</div>
+</div>
+
+<h3>Por qué <code>type="module"</code> es especial</h3>
+<p>Los módulos ES tienen comportamiento distinto a los scripts clásicos:</p>
+<table>
+  <tr><th>Característica</th><th>Script clásico</th><th><code>type="module"</code></th></tr>
+  <tr><td>Bloquea el parser</td><td>Sí (si está en head sin defer)</td><td>No — siempre diferido</td></tr>
+  <tr><td>Modo estricto</td><td>Opcional (<code>'use strict'</code>)</td><td>Siempre activado</td></tr>
+  <tr><td><code>import</code>/<code>export</code></td><td>SyntaxError</td><td>Funciona</td></tr>
+  <tr><td>Scope</td><td>Global — las variables son <code>window.x</code></td><td>Local al módulo</td></tr>
+  <tr><td>Se ejecuta</td><td>Inmediatamente al descargarse</td><td>Cuando el DOM está listo (como DOMContentLoaded)</td></tr>
+</table>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Por qué el script puede estar en el &lt;head&gt;</div>
+  <p>En HTML clásico, poner un script en el <code>&lt;head&gt;</code> sin <code>defer</code> bloquea el renderizado. Con <code>type="module"</code> es seguro en el <code>&lt;head&gt;</code> porque el módulo se descarga en paralelo y sólo ejecuta cuando el DOM está construido.</p>
+</div>
+
+<h3>El atributo <code>crossorigin</code> en preconnect</h3>
+<p>El <code>index.html</code> tiene:</p>
+<div class="code-wrap">
+<pre><code class="language-html">&lt;link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /&gt;</code></pre>
+</div>
+<p>El atributo <code>crossorigin</code> le dice al navegador que la futura petición a ese servidor necesitará credenciales CORS anónimas. Sin él, el navegador establece dos conexiones diferentes (una con credenciales, otra sin) y el preconnect no sirve de nada para las fuentes. Con él, reutiliza la conexión preestablecida.</p>
+
+<h3>StrictMode: por qué tu efecto corre dos veces en desarrollo</h3>
+<p>En producción, cuando un componente se monta, React ejecuta el <code>useEffect</code> una sola vez. En desarrollo con <code>StrictMode</code>, React hace deliberadamente:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Monta el componente y ejecuta los efectos.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> Desmonta el componente y ejecuta las funciones de limpieza.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> Monta de nuevo y ejecuta los efectos otra vez.</div>
+</div>
+
+<p>El objetivo: detectar efectos sin función de limpieza correcta. Si tu efecto suma una visualización y no cancela el intervalo o subscription correctamente, lo verás roto en desarrollo antes de llegar a producción. Por eso <code>DetalleProducto</code> usa <code>visualizacionContadaRef</code>: el ref recuerda qué producto ya contó y no cuenta dos veces aunque el efecto corra dos veces.</p>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> SPA: la trampa del refresh en producción</div>
+  <p>En <code>npm run dev</code>, si abres directamente <code>http://localhost:5173/productos</code> funciona. Vite está configurado para servir <code>index.html</code> para cualquier ruta desconocida. En producción (nginx por ejemplo), al navegar a <code>/productos</code>, el servidor busca el fichero físico <code>/productos</code>, no lo encuentra y devuelve 404. Solución estándar: configurar <code>try_files $uri /index.html;</code> en nginx para que cualquier ruta sirva el index.html y React Router decida qué mostrar.</p>
+</div>
+
+<h3>Preguntas trampa del entrevistador</h3>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si el usuario tiene JavaScript desactivado?"</div>
+  <p><strong>Respuesta completa</strong>: La web muestra un <code>&lt;div id="root"&gt;</code> vacío. No hay fallback de contenido porque es una SPA pura (Client-Side Rendering). Para manejar esto se puede añadir un <code>&lt;noscript&gt;</code> en el HTML, o usar SSR (Server-Side Rendering) con frameworks como Next.js, que genera el HTML en el servidor. DaWeb no usa SSR.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Afecta esta arquitectura al SEO?"</div>
+  <p><strong>Respuesta completa</strong>: Sí, negativamente. Los buscadores como Googlebot pueden ejecutar JavaScript, pero hay limitaciones: el crawler puede no esperar suficiente tiempo para que React monte los componentes, y puede que no ejecute ciertos scripts. Una SPA pura tiene peor indexación que HTML estático. Para un marketplace de segunda mano en producción real, se usaría SSR o pre-rendering para las páginas de producto.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué hay dos <code>&lt;link rel="preconnect"&gt;</code> para Google Fonts?"</div>
+  <p><strong>Respuesta</strong>: Las fuentes de Google usan dos dominios: <code>fonts.googleapis.com</code> para la CSS que lista las fuentes (petición sencilla), y <code>fonts.gstatic.com</code> para los archivos de fuente reales (petición con CORS anónimo). El preconnect a ambos establece las conexiones TCP+TLS antes de que el navegador sepa que las necesita, ahorrando 100-200ms en la carga inicial.</p>
+</div>
+
+<h2>6. Quiz</h2>
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta</div>
   <p class="quiz-pregunta">¿Por qué el <code>&lt;div id="root"&gt;</code> está vacío en <code>index.html</code>?</p>

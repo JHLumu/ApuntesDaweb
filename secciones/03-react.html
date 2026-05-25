@@ -231,7 +231,154 @@ export default ProductoCard;</code></pre>
 <h3>RutaProtegida (<code>src/components/RutaProtegida.jsx</code>)</h3>
 <p>Envoltorio que comprueba sesión y rol; lo veremos a fondo en la sección 09.</p>
 
-<h2>7. Quiz</h2>
+<h2>7. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>El Virtual DOM y el algoritmo de reconciliación (Fiber)</h3>
+<p>React mantiene en memoria una representación del árbol de la interfaz llamada <strong>Virtual DOM</strong>. Es simplemente un árbol de objetos JavaScript — más barato de crear y comparar que el DOM real del navegador.</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> El estado cambia → React llama a la función del componente de nuevo → genera un <strong>nuevo</strong> árbol Virtual DOM.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> React compara el árbol nuevo con el anterior (algoritmo de <em>diffing</em>). Solo calcula las diferencias mínimas.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> React aplica SOLO esos cambios al DOM real. Si un <code>&lt;h1&gt;</code> no cambió, no lo toca.</div>
+</div>
+
+<p>Analogía: un arquitecto que compara dos planos y sólo da instrucciones para mover los tabiques que cambiaron, no derriba el edificio entero.</p>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Re-render ≠ repintar DOM</div>
+  <p>Cuando React "re-renderiza" un componente, ejecuta su función y genera el Virtual DOM. Pero si el resultado es idéntico al anterior, el DOM real no cambia. Son dos fases distintas: <strong>render</strong> (generar VDOM) y <strong>commit</strong> (aplicar al DOM).</p>
+</div>
+
+<h3>JSX se compila a <code>React.createElement</code></h3>
+<p>JSX no es HTML ni es magia. Es azúcar sintáctico que el compilador (Vite/Babel) transforma antes de que el navegador lo vea:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Lo que tú escribes</h4>
+<pre><code class="language-jsx">&lt;ProductoCard
+  key={p.id}
+  producto={p}
+/&gt;</code></pre>
+  </div>
+  <div class="tarjeta">
+    <h4>Lo que el compilador genera</h4>
+<pre><code class="language-js">React.createElement(
+  ProductoCard,
+  { key: p.id, producto: p }
+)</code></pre>
+  </div>
+</div>
+
+<p>Con hijos:</p>
+<div class="dos-cols">
+  <div class="tarjeta">
+<pre><code class="language-jsx">&lt;div className="grid"&gt;
+  &lt;span&gt;Hola&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+  </div>
+  <div class="tarjeta">
+<pre><code class="language-js">React.createElement(
+  'div',
+  { className: 'grid' },
+  React.createElement('span', null, 'Hola')
+)</code></pre>
+  </div>
+</div>
+
+<p>Por eso las etiquetas HTML en JSX van en minúscula (<code>'div'</code> = string) y los componentes en mayúscula (<code>ProductoCard</code> = referencia a función). Si pones <code>&lt;productoCard /&gt;</code> React busca el elemento HTML "productocard" y no lo encuentra.</p>
+
+<h3>¿Cuándo re-renderiza React un componente?</h3>
+<p>Un componente vuelve a ejecutarse (re-renderiza) cuando ocurre cualquiera de estas tres cosas:</p>
+
+<table>
+  <tr><th>Causa</th><th>Ejemplo en DaWeb</th></tr>
+  <tr><td>1. Su estado cambia</td><td><code>setProductos([...])</code> en <code>Productos.jsx</code></td></tr>
+  <tr><td>2. Sus props cambian</td><td><code>ProductoCard</code> re-renderiza si la prop <code>producto</code> cambia</td></tr>
+  <tr><td>3. Su componente padre re-renderiza</td><td>Si <code>Productos.jsx</code> re-renderiza, todos sus <code>ProductoCard</code> también lo hacen por defecto</td></tr>
+</table>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Re-render ≠ lentitud</div>
+  <p>Re-renderizar no es automáticamente malo. React es rápido precisamente porque el re-render en Virtual DOM es barato; sólo es un problema si hay miles de componentes re-renderizando innecesariamente. En DaWeb, el tamaño de la app hace que sea irrelevante.</p>
+</div>
+
+<h3>La prop <code>key</code>: cómo React rastrea listas</h3>
+<p>Cuando renderizas una lista con <code>.map()</code>, React necesita saber qué elemento es qué para no confundirlos entre renders. Para eso usa la prop <code>key</code>.</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Sin key (o con índice)</h4>
+<pre><code class="language-jsx">// Peligroso si la lista puede reordenarse
+{items.map((item, i) =&gt; (
+  &lt;Item key={i} data={item} /&gt;
+))}</code></pre>
+    <p>Si el elemento 0 desaparece, React "reutiliza" el componente del índice 0 para el que antes era el 1. Si ese componente tenía estado interno (un input con texto), ese estado se queda en el lugar incorrecto.</p>
+  </div>
+  <div class="tarjeta">
+    <h4>Con key estable (correcto)</h4>
+<pre><code class="language-jsx">// Correcto: usa el id del dato
+{productos.map((p) =&gt; (
+  &lt;ProductoCard key={p.id} producto={p} /&gt;
+))}</code></pre>
+    <p>React puede identificar exactamente qué elemento es cuál, aunque el orden cambie. El estado interno del componente se mantiene vinculado al <em>dato correcto</em>.</p>
+  </div>
+</div>
+
+<h3>Props: inmutabilidad como contrato</h3>
+<p>Un componente es una función. Sus props son sus parámetros. <strong>Nunca modificar props directamente</strong> — es un contrato de React, no sólo una convención:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Incorrecto (bug)</h4>
+<pre><code class="language-jsx">function Card({ producto }) {
+  producto.precio = 0; // ❌ NUNCA
+  return &lt;p&gt;{producto.precio}&lt;/p&gt;;
+}</code></pre>
+    <p>Mutarías el objeto original en el componente padre. El padre no se enteraría y el estado del componente padre quedaría inconsistente con lo que muestra Card.</p>
+  </div>
+  <div class="tarjeta">
+    <h4>Correcto</h4>
+<pre><code class="language-jsx">function Card({ producto }) {
+  // Si necesitas modificar, crea una copia
+  const precioMostrar = Math.floor(producto.precio);
+  return &lt;p&gt;{precioMostrar}&lt;/p&gt;;
+}</code></pre>
+    <p>El estado del padre no se toca. Card sólo <em>lee</em> sus props y produce un resultado.</p>
+  </div>
+</div>
+
+<h3>El árbol de componentes de DaWeb y quién re-renderiza a quién</h3>
+<div class="code-wrap">
+  <span class="file-label">jerarquía simplificada</span>
+<pre><code class="language-text">App
+└── AuthProvider      ← re-renderiza toda la app cuando cambia usuario
+    └── BrowserRouter
+        └── Layout
+            ├── Header        ← usa useAuth(), re-renderiza en login/logout
+            ├── Routes
+            │   └── Productos ← re-renderiza al cambiar filtros/página
+            │       └── ProductoCard × N  ← cada tarjeta
+            └── Footer</code></pre>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué el header se actualiza cuando haces login?"</strong> — Porque <code>Header</code> llama a <code>useAuth()</code>. Cuando el login tiene éxito, <code>AuthProvider</code> llama a <code>setUsuario(u)</code>. Eso re-renderiza <code>AuthProvider</code>, lo cual re-renderiza <em>todos</em> sus hijos: Layout, Header, etc. Header, al ejecutarse de nuevo, ya tiene el nuevo <code>usuario</code> del contexto.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué pasa si usas el índice del array como key?"</strong> — Si la lista se puede reordenar, filtrar o eliminar elementos, los índices cambian. React reutilizará el componente incorrecto. Los inputs con estado interno mostrarán el valor equivocado. En DaWeb, el id del producto es la key correcta porque es estable y único.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué diferencia hay entre <code>&lt;div&gt;</code> y <code>&lt;Fragment&gt;</code> (<code>&lt;&gt;&lt;/&gt;</code>)?"</strong> — <code>div</code> añade un elemento real al DOM. <code>Fragment</code> es un wrapper invisible: agrupa hijos en JSX sin añadir nada al DOM. Útil cuando JSX necesita un único elemento raíz pero no quieres un div extra (p.ej. celdas de tabla, donde un div dentro de un <code>&lt;tr&gt;</code> es HTML inválido).</p>
+</div>
+
+<h2>8. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -269,7 +416,7 @@ export default ProductoCard;</code></pre>
   <p class="quiz-feedback" data-ok="Sí. En JSX, una prop sin valor equivale a true." data-ko="JSX tiene atajo: una prop sin '=' equivale a true."></p>
 </div>
 
-<h2>8. Ejercicios</h2>
+<h2>9. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">

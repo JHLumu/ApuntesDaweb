@@ -224,7 +224,146 @@ import './theme.css'                            // 3º tema del proyecto</code><
 </div>
 <p>Los estilos posteriores sobrescriben los anteriores cuando tienen la misma especificidad. Por eso <code>.btn-lav</code> definido en <code>theme.css</code> tiene precedencia sobre los botones por defecto de Bootstrap.</p>
 
-<h2>9. Quiz</h2>
+<h2>9. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>La especificidad CSS: qué regla "gana"</h3>
+<p>Cuando dos reglas CSS apuntan al mismo elemento, gana la más <strong>específica</strong>. La especificidad se calcula como (A, B, C):</p>
+
+<table>
+  <tr><th>Selector</th><th>A (IDs)</th><th>B (clases, attrs)</th><th>C (etiquetas)</th><th>Valor</th></tr>
+  <tr><td><code>div</code></td><td>0</td><td>0</td><td>1</td><td>(0,0,1)</td></tr>
+  <tr><td><code>.btn-lav</code></td><td>0</td><td>1</td><td>0</td><td>(0,1,0)</td></tr>
+  <tr><td><code>button.btn-lav</code></td><td>0</td><td>1</td><td>1</td><td>(0,1,1)</td></tr>
+  <tr><td><code>#header</code></td><td>1</td><td>0</td><td>0</td><td>(1,0,0)</td></tr>
+  <tr><td><code>style=""</code> inline</td><td>—</td><td>—</td><td>—</td><td>siempre gana</td></tr>
+</table>
+
+<p>Bootstrap usa clases (<code>.btn</code>, <code>.btn-primary</code>), por eso para sobreescribir puedes añadir más especificidad o cargarlo después con la misma:</p>
+
+<div class="code-wrap">
+<pre><code class="language-css">/* Bootstrap define: .btn-primary { background: #0d6efd } — especificidad (0,1,0) */
+
+/* Override con misma especificidad pero DESPUÉS en el orden de carga */
+.btn-lav { background: var(--ink); }  /* también (0,1,0) — funciona si carga después */
+
+/* Override más específico: siempre gana independientemente del orden */
+button.btn-lav { background: var(--ink); }  /* (0,1,1) > (0,1,0) */</code></pre>
+</div>
+
+<p>En DaWeb, <code>theme.css</code> se carga DESPUÉS de Bootstrap (<code>main.jsx</code>: Bootstrap primero, luego <code>index.css</code>, luego <code>theme.css</code>). Esto garantiza que los estilos personalizados sobreescriben los de Bootstrap con la misma especificidad.</p>
+
+<h3>El modelo de caja (box model)</h3>
+<p>Cada elemento HTML es una caja con cuatro capas:</p>
+
+<div class="code-wrap">
+  <span class="file-label">visualización del box model</span>
+<pre><code class="language-text">┌─────────────── margin ───────────────┐
+│  ┌──────────── border ─────────────┐ │
+│  │  ┌──────── padding ───────────┐ │ │
+│  │  │      CONTENT (width)       │ │ │
+│  │  └────────────────────────────┘ │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘</code></pre>
+</div>
+
+<p>Hay dos modos de calcular el <code>width</code>:</p>
+<ul>
+  <li><code>box-sizing: content-box</code> (por defecto CSS): <code>width</code> = solo el contenido. Si añades padding, el elemento se hace más ancho que el <code>width</code> declarado.</li>
+  <li><code>box-sizing: border-box</code> (Bootstrap lo impone globalmente): <code>width</code> incluye padding y border. Mucho más intuitivo: <code>width: 300px</code> siempre mide 300px.</li>
+</ul>
+
+<div class="code-wrap">
+<pre><code class="language-css">/* Bootstrap hace esto globalmente */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Efecto: col con width:300px y padding:16px
+   tiene content de 300-32=268px (no 332px desbordando el layout) */</code></pre>
+</div>
+
+<h3>Flexbox: el corazón del layout de Bootstrap</h3>
+<p>El sistema de grid de Bootstrap (Row/Col) se basa en Flexbox. Entender Flexbox es entender por qué <code>d-flex gap-2 align-items-center</code> funciona:</p>
+
+<div class="code-wrap">
+<pre><code class="language-css">/* Contenedor flex (el padre) */
+.d-flex { display: flex; }
+/* Por defecto: flex-direction: row, flex-wrap: nowrap */
+
+/* Alineación en el eje principal (horizontal si row) */
+.justify-content-between { justify-content: space-between; }
+.justify-content-center  { justify-content: center; }
+
+/* Alineación en el eje cruzado (vertical si row) */
+.align-items-center  { align-items: center; }
+.align-items-stretch { align-items: stretch; } /* por defecto */
+
+/* Separación entre items */
+.gap-2 { gap: 0.5rem; }</code></pre>
+</div>
+
+<p>En DaWeb, en el header de sesión iniciada:</p>
+<div class="code-wrap">
+<pre><code class="language-jsx">&lt;div className="d-flex gap-2 align-items-center"&gt;
+  &lt;button className="header-btn" onClick={salir}&gt;Salir&lt;/button&gt;
+  &lt;span&gt;{usuario.nombre}&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+</div>
+<p>El div es un contenedor flex: sus hijos (botón y span) se colocan en fila, alineados verticalmente al centro, con 0.5rem de separación.</p>
+
+<h3>Las variables CSS y la cascada: por qué cambia toda la app</h3>
+<p>Las variables CSS se definen en <code>:root</code>. El selector <code>:root</code> es el elemento más alto del árbol (equivale a <code>&lt;html&gt;</code>). Las variables se heredan en cascada hacia todos los descendientes — es decir, hacia toda la página:</p>
+
+<div class="code-wrap">
+<pre><code class="language-css">/* En :root = accesible desde cualquier elemento de la página */
+:root { --primary: #c8b6ff; }
+
+.card { border-color: var(--primary); }
+.seccion-titulo { border-left-color: var(--primary); }
+/* Cambiar --primary en :root cambia AMBAS reglas automáticamente */
+
+/* Sobreescribir para un subtree local */
+.seccion-oscura {
+  --primary: #8a2be2; /* solo aplica dentro de .seccion-oscura */
+}</code></pre>
+</div>
+
+<h3>Animaciones con <code>@keyframes</code>: el truco del bucle infinito</h3>
+<p>La animación marquee de <code>Home.jsx</code> usa este truco para el bucle perfecto:</p>
+<ol>
+  <li>El contenido se duplica en JSX: <code>[...BLOQUES, ...BLOQUES]</code> → 8 items en lugar de 4.</li>
+  <li>La animación CSS mueve el track un <code>-50%</code> en Y (equivale a desplazar los 4 primeros fuera de vista).</li>
+  <li>Al llegar al -50%, los 4 segundos son idénticos a los 4 primeros → el siguiente fotograma es visualmente igual al inicio → bucle invisible sin parpadeo.</li>
+</ol>
+
+<div class="code-wrap">
+<pre><code class="language-css">@keyframes marquee-up {
+  from { transform: translateY(0); }    /* posición inicial */
+  to   { transform: translateY(-50%); } /* -50% = el primer grupo sale, el segundo ocupa su lugar */
+}
+
+/* Contenido: [A, B, C, D, A, B, C, D]
+   At -50%:  los A,B,C,D originales están fuera de la ventana,
+             los A,B,C,D de la copia están en la posición inicial
+   → idéntico al inicio → bucle invisible */</code></pre>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué Bootstrap usa <code>border-box</code> como <code>box-sizing</code>?"</strong> — Porque el comportamiento por defecto (<code>content-box</code>) es contraintuitivo: si pones <code>width: 100%</code> y añades padding, el elemento desborda su contenedor. Con <code>border-box</code>, el ancho incluye el padding, así <code>width: 100%</code> con padding siempre encaja sin desbordar.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué es la cascada CSS y por qué importa el orden de importación?"</strong> — Cascada = cuando dos reglas tienen la misma especificidad, gana la que aparece <em>después</em> en el CSS. En <code>main.jsx</code>, Bootstrap se importa primero y <code>theme.css</code> después. Así, <code>.card</code> en <code>theme.css</code> sobreescribe <code>.card</code> de Bootstrap sin necesitar mayor especificidad. Si se invirtiera el orden, Bootstrap ganaría.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué diferencia hay entre <code>display: none</code> y <code>visibility: hidden</code>?"</strong> — <code>display: none</code> elimina el elemento del flujo del documento: no ocupa espacio, no recibe clicks. <code>visibility: hidden</code> lo hace invisible pero sigue ocupando espacio. En Bootstrap, <code>.d-none</code> usa <code>display: none</code>; al añadir <code>.d-md-block</code> cambia a <code>display: block</code> a partir de la breakpoint md.</p>
+</div>
+
+<h2>10. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -262,7 +401,7 @@ import './theme.css'                            // 3º tema del proyecto</code><
   <p class="quiz-feedback" data-ok="Bien. Esto reemplaza varias media queries con una sola línea." data-ko="auto-fill: cuantas quepan; minmax(min, max): rango admitido por columna."></p>
 </div>
 
-<h2>10. Ejercicios sobre el proyecto</h2>
+<h2>11. Ejercicios sobre el proyecto</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">

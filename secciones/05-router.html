@@ -259,7 +259,163 @@ function Login() {
   <div class="flujo-paso"><span class="num">5</span> Se monta <code>&lt;DetalleProducto /&gt;</code>. Su <code>useParams()</code> devuelve <code>{ id: "42" }</code>. El <code>useEffect</code> pide el producto a la API.</div>
 </div>
 
-<h2>10. Quiz</h2>
+<h2>10. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>La History API del navegador: cómo funciona sin recarga</h3>
+<p>El secreto de una SPA es la <strong>History API</strong> de HTML5. Con ella se puede cambiar la URL sin que el navegador haga ninguna petición al servidor:</p>
+
+<div class="code-wrap">
+  <span class="file-label">navegador — API nativa</span>
+<pre><code class="language-js">// Cambia la URL sin recargar ni ir al servidor
+window.history.pushState({}, '', '/productos');
+
+// Reemplaza la entrada actual del historial (sin añadir)
+window.history.replaceState({}, '', '/login');
+
+// El botón "atrás" navega hacia atrás en el historial
+window.history.back();</code></pre>
+</div>
+
+<p>React Router envuelve estas llamadas en componentes y hooks, pero internamente es todo History API. El <code>BrowserRouter</code> escucha el evento <code>popstate</code> (botón atrás/adelante del navegador) y actualiza qué componente renderizar.</p>
+
+<h3>BrowserRouter vs HashRouter: diferencia crítica en producción</h3>
+
+<table>
+  <tr><th></th><th>BrowserRouter</th><th>HashRouter</th></tr>
+  <tr><td><strong>URL ejemplo</strong></td><td><code>/productos/42</code></td><td><code>/#/productos/42</code></td></tr>
+  <tr><td><strong>Mecanismo</strong></td><td>History API (<code>pushState</code>)</td><td>Hash de URL (<code>#</code>)</td></tr>
+  <tr><td><strong>Recarga en producción</strong></td><td>El servidor debe servir <code>index.html</code> para cualquier ruta</td><td>El servidor solo sirve <code>/</code>; el hash es solo del cliente</td></tr>
+  <tr><td><strong>SEO</strong></td><td>URLs indexables por buscadores</td><td>Los buscadores suelen ignorar el hash</td></tr>
+  <tr><td><strong>DaWeb usa</strong></td><td>✓ BrowserRouter</td><td></td></tr>
+</table>
+
+<h3>La trampa del refresh en producción</h3>
+<p>En desarrollo, Vite sirve <code>index.html</code> para cualquier URL que no sea un archivo. Pero en producción, si el servidor no está configurado, ocurre esto:</p>
+
+<div class="flujo">
+  <div class="flujo-paso"><span class="num">1</span> Usuario está en <code>/productos/42</code> y pulsa F5 (recarga).</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">2</span> El navegador hace una petición HTTP real a <code>https://miweb.com/productos/42</code>.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">3</span> El servidor busca el archivo <code>/productos/42</code> o el directorio <code>/productos/42/index.html</code>. No existe.</div>
+  <div class="flujo-flecha">▼</div>
+  <div class="flujo-paso"><span class="num">4</span> El servidor devuelve 404.</div>
+</div>
+
+<p>La solución: configurar el servidor para que siempre sirva <code>index.html</code> y deje que React Router decida. En Nginx:</p>
+<div class="code-wrap">
+  <span class="file-label">nginx.conf</span>
+<pre><code class="language-nginx">location / {
+  try_files $uri $uri/ /index.html;
+}</code></pre>
+</div>
+
+<h3>Rutas anidadas: cómo Perfil comparte layout con sus subpáginas</h3>
+<p>El <code>&lt;Outlet /&gt;</code> es el "hueco" donde React Router inserta la ruta hija que coincide. Sin él, la subruta no aparecería en pantalla aunque matcheara en App.jsx.</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/Perfil.jsx — estructura</span>
+<pre><code class="language-jsx">function Perfil() {
+  return (
+    &lt;Container&gt;
+      &lt;Row&gt;
+        &lt;Col md={4}&gt;
+          {/* Panel izquierdo: siempre visible */}
+          &lt;FormularioPerfil /&gt;
+        &lt;/Col&gt;
+        &lt;Col md={8}&gt;
+          {/* Pestañas */}
+          &lt;div className="perfil-tabs"&gt;
+            &lt;NavLink to="/perfil/productos"&gt;Mis productos&lt;/NavLink&gt;
+            &lt;NavLink to="/perfil/ventas"&gt;Mis ventas&lt;/NavLink&gt;
+          &lt;/div&gt;
+          {/* Aquí se renderiza PerfilProductos, PerfilVentas o PerfilCompras */}
+          &lt;Outlet /&gt;
+        &lt;/Col&gt;
+      &lt;/Row&gt;
+    &lt;/Container&gt;
+  );
+}</code></pre>
+</div>
+
+<p>Cuando la URL es <code>/perfil/ventas</code>, React Router monta <code>Perfil</code> y dentro del <code>&lt;Outlet /&gt;</code> monta <code>PerfilVentas</code>. El panel izquierdo y las pestañas de <code>Perfil</code> permanecen sin desmontar — no se vuelven a crear, solo cambia el contenido del Outlet.</p>
+
+<h3>La ruta <code>index</code> y el redirect por defecto</h3>
+<div class="code-wrap">
+<pre><code class="language-jsx">&lt;Route path="/perfil" element={&lt;RutaProtegida&gt;&lt;Perfil /&gt;&lt;/RutaProtegida&gt;}&gt;
+  &lt;Route index element={&lt;Navigate to="productos" replace /&gt;} /&gt;
+  &lt;Route path="productos" element={&lt;PerfilProductos /&gt;} /&gt;
+&lt;/Route&gt;</code></pre>
+</div>
+<p><code>index</code> no es un path; es la coincidencia exacta del padre. Si el usuario va a <code>/perfil</code> (sin subruta), la ruta <code>index</code> actúa como fallback y redirige a <code>productos</code>. Sin ella, el <code>&lt;Outlet /&gt;</code> estaría vacío.</p>
+
+<h3>Diagrama de interacción: navegación entre subrutas con Outlet</h3>
+<p>Qué se monta, qué se desmonta y qué se preserva cuando saltas de <code>/perfil/ventas</code> a <code>/perfil/compras</code>:</p>
+
+<div class="code-wrap">
+  <span class="file-label">cambio de pestaña dentro de /perfil</span>
+<pre><code class="language-text">Estado inicial: /perfil/ventas
+─────────────────────────────────────────────────────────────────
+<App>
+  <AuthProvider>          ← montado, estado: usuario={id:7, ...}
+    <BrowserRouter>        ← monitoriza URL
+      <Layout>             ← header + main + footer
+        <Routes>
+          <RutaProtegida>  ← evalúa cada render: usuario OK
+            <Perfil>       ← monta UNA VEZ:
+              ├── form de datos (estado: nombre, correo...)
+              ├── tabs NavLink (recalcula isActive en cada render)
+              └── <Outlet />
+                  └── <PerfilVentas>  ← monta y carga ventas vía API
+                        useEffect → compraventasApi.ventas(7,0,10)
+                        estado: [10 ventas]
+
+Usuario hace click en NavLink "Mis compras"
+─────────────────────────────────────────────────────────────────
+1. Link intercepta el click → history.pushState('/perfil/compras')
+2. BrowserRouter detecta cambio → Routes re-matchea
+3. <RutaProtegida> sigue montada (no cambia)
+4. <Perfil> sigue montada (no cambia)
+   ├── form: estado se PRESERVA (los campos siguen rellenos)
+   ├── tabs: re-renderizan con nuevo isActive
+   └── <Outlet />:
+       └── <PerfilVentas>   ← DESMONTA (cleanup useEffect, pierde estado)
+           ↓ replace
+       └── <PerfilCompras>  ← MONTA nuevo
+                  useEffect → compraventasApi.compras(7,0,10)
+                  estado nuevo: [N compras]
+
+Estado final: /perfil/compras
+─────────────────────────────────────────────────────────────────
+<Perfil> sigue montada — solo el contenido del Outlet cambió.
+Re-renders necesarios: <Perfil> (tabs), <Outlet/> (contenido nuevo)
+Re-renders NO necesarios: <App>, <AuthProvider>, <BrowserRouter>, <Layout>
+                          (su árbol no cambió)</code></pre>
+</div>
+
+<div class="callout info">
+  <div class="callout-titulo"><i class="bi bi-info-circle"></i> Por qué importa esto</div>
+  <p>Si <code>Perfil</code> se desmontara al cambiar de pestaña, perderías el estado del formulario de datos personales. Las rutas anidadas con <code>Outlet</code> evitan precisamente eso: el "shell" persiste, solo el contenido del hueco cambia.</p>
+</div>
+
+
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué diferencia hay entre <code>navegar('/')</code> y <code>navegar('/', { replace: true })</code>?"</strong> — Sin <code>replace</code>: añade una nueva entrada al historial; el usuario puede pulsar "atrás" para volver. Con <code>replace</code>: sustituye la entrada actual. Si un usuario sin login va a <code>/perfil</code>, RutaProtegida lo manda a <code>/login</code> con <code>replace</code>. Al pulsar "atrás", vuelve a la página anterior a <code>/perfil</code>, no a <code>/perfil</code> (que le volvería a redirigir en bucle).</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"Si recargas la página en <code>/perfil/ventas</code> en producción, ¿qué pasa?"</strong> — El servidor busca el fichero <code>/perfil/ventas</code> y no existe. Devuelve 404. Para evitarlo, el servidor (Nginx, Apache, etc.) debe estar configurado para devolver siempre <code>index.html</code> para cualquier ruta que no sea un archivo real. Vite lo hace automáticamente en desarrollo.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué <code>AuthProvider</code> envuelve <code>BrowserRouter</code> y no al revés?"</strong> — Si fuera al revés, <code>AuthProvider</code> no podría usar hooks de React Router (<code>useNavigate</code>) si los necesitara. Al poner <code>AuthProvider</code> fuera, el contexto de autenticación está disponible en toda la app incluyendo los componentes de routing. Además, <code>RutaProtegida</code> necesita acceder tanto a <code>useAuth()</code> como a <code>useNavigate()</code> simultáneamente.</p>
+</div>
+
+<h2>11. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
@@ -285,7 +441,7 @@ function Login() {
   <p class="quiz-feedback" data-ok="Bien. &lt;Route index&gt; representa la coincidencia exacta del padre." data-ko="index = hijo por defecto. Sin él, /perfil mostraría sólo el padre sin pestaña activa."></p>
 </div>
 
-<h2>11. Ejercicios</h2>
+<h2>12. Ejercicios</h2>
 
 <div class="ejercicio">
   <div class="ejercicio-cabecera">

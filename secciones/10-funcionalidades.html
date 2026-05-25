@@ -694,6 +694,274 @@ useEffect(() =&gt; {
 }</code></pre>
 </div>
 
+<h2>Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3><code>e.preventDefault()</code>: por qué es imprescindible en SPAs</h3>
+<p>El comportamiento por defecto del navegador al enviar un formulario: serializa los campos y hace una petición GET o POST a la URL del atributo <code>action</code> del form (o a la URL actual si no hay action), <strong>recargando la página</strong>.</p>
+
+<p>En una SPA, esa recarga destruye todo el estado de React en memoria: el usuario logueado, los filtros activos, el historial. <code>e.preventDefault()</code> cancela esa navegación nativa y deja al JS gestionar el envío:</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">const enviar = async (e) =&gt; {
+  e.preventDefault();   // cancela la recarga nativa del navegador
+  // A partir de aquí: control total del envío con JS
+  const res = await login(correo, clave);
+  if (res.ok) navegar('/');
+  else setError(res.error);
+};</code></pre>
+</div>
+
+<h3>El patrón cargando/error/datos: las tres fases de cualquier petición</h3>
+<p>Una petición HTTP puede tardar desde millisegundos hasta segundos. La UX exige mostrar el estado en cada fase:</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// 1. Antes de la petición: mostrar spinner
+setCargando(true);
+setError('');
+
+productosApi.listarProductos(filtros)
+  // 2. Si tiene éxito: mostrar datos
+  .then(res =&gt; {
+    setProductos(desempaquetar(res, 'productoList'));
+    setTotalPaginas(totalPaginasRes(res));
+  })
+  // 3. Si falla: mostrar error
+  .catch(err =&gt; setError(err.message))
+  // 4. Siempre: quitar spinner (¡aunque haya error!)
+  .finally(() =&gt; setCargando(false));
+
+// En JSX — orden importa:
+if (cargando) return &lt;Spinner animation="border" /&gt;;
+if (error) return &lt;Alert variant="danger"&gt;{error}&lt;/Alert&gt;;
+return &lt;ListaProductos productos={productos} /&gt;;</code></pre>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> <code>.finally()</code> es crítico</div>
+  <p>Sin <code>.finally()</code>, si la petición falla, <code>setCargando(false)</code> nunca se llama y el spinner queda girando indefinidamente. <code>.finally()</code> se ejecuta tanto si la petición tuvo éxito como si falló, garantizando que el spinner siempre desaparece.</p>
+</div>
+
+<h3>Optimistic update vs Server refresh: la elección de DaWeb</h3>
+<p>Después de una acción (comprar, editar), hay dos estrategias para actualizar la UI:</p>
+
+<div class="dos-cols">
+  <div class="tarjeta">
+    <h4>Server refresh (DaWeb usa esto)</h4>
+<pre><code class="language-jsx">// Tras crearCompraventa:
+await compraventasApi.crearCompraventa({...});
+// Pide el producto de nuevo al servidor
+const refrescado = await productosApi.obtenerProducto(id);
+setProducto(refrescado); // ahora vendido = true</code></pre>
+    <p><strong>Pro:</strong> La UI siempre muestra lo que está en el servidor. Sin inconsistencias.<br><strong>Contra:</strong> Una petición extra de red. Un pequeño delay visible.</p>
+  </div>
+  <div class="tarjeta">
+    <h4>Optimistic update (no implementado)</h4>
+<pre><code class="language-jsx">// Actualiza el estado LOCAL antes de confirmar
+setProducto(prev =&gt; ({...prev, vendido: true}));
+// Luego lanza la petición
+crearCompraventa({...})
+  .catch(() =&gt; {
+    // Si falla, revertir
+    setProducto(prev =&gt; ({...prev, vendido: false}));
+  });</code></pre>
+    <p><strong>Pro:</strong> La UI responde instantáneamente.<br><strong>Contra:</strong> Si el servidor falla hay que revertir. Si otro usuario compró al mismo tiempo, puede haber inconsistencia.</p>
+  </div>
+</div>
+
+<h3>Computed property <code>[e.target.name]</code>: un handler para N inputs</h3>
+<p>El truco central de los formularios de DaWeb:</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// Sin el truco: un handler por campo
+const cambiarNombre = (e) =&gt; setDatos({...datos, nombre: e.target.value});
+const cambiarCorreo = (e) =&gt; setDatos({...datos, correo: e.target.value});
+
+// Con el truco: UN handler para todos los inputs
+const cambiar = (e) =&gt;
+  setDatos({ ...datos, [e.target.name]: e.target.value });
+
+// En JSX: el atributo "name" conecta el input con la clave del objeto
+&lt;Form.Control name="nombre"   value={datos.nombre}   onChange={cambiar} /&gt;
+&lt;Form.Control name="correo"   value={datos.correo}   onChange={cambiar} /&gt;
+&lt;Form.Control name="telefono" value={datos.telefono} onChange={cambiar} /&gt;</code></pre>
+</div>
+
+<p>Los corchetes en una clave de objeto literal (<code>[e.target.name]</code>) se llaman <strong>computed property name</strong>: la expresión dentro se evalúa en tiempo de ejecución como nombre de la clave. Equivale a:</p>
+<div class="code-wrap">
+<pre><code class="language-js">const obj = { ...datos };
+obj[e.target.name] = e.target.value;
+// Si e.target.name === 'nombre':  obj.nombre = 'Ana'
+// Si e.target.name === 'correo':  obj.correo = 'ana@b.com'</code></pre>
+</div>
+
+<h3>Paginación del servidor vs del cliente: por qué DaWeb usa ambas</h3>
+
+<table>
+  <tr><th></th><th>Servidor (Productos.jsx)</th><th>Cliente (PerfilProductos.jsx)</th></tr>
+  <tr><td><strong>Petición</strong></td><td><code>?page=0&amp;size=9</code> — solo llegan 9 productos</td><td><code>?page=0&amp;size=500</code> — pide un lote grande de golpe</td></tr>
+  <tr><td><strong>Filtrado</strong></td><td>El servidor filtra (descripción, categoría, estado, precio)</td><td>El cliente filtra: <code>.filter(p =&gt; p.vendedor?.id === usuario.id)</code></td></tr>
+  <tr><td><strong>Total páginas</strong></td><td>Viene en <code>page.totalPages</code> del HAL</td><td>Se calcula: <code>Math.ceil(todos.length / TAMANO_PAGINA)</code></td></tr>
+  <tr><td><strong>Por qué</strong></td><td>Eficiente con millones de productos</td><td>El endpoint <code>/productos</code> no filtra por <code>idVendedor</code> directamente; más simple cargar un lote y filtrar localmente</td></tr>
+  <tr><td><strong>Escalabilidad</strong></td><td>Siempre eficiente</td><td>Problemático si el usuario tiene miles de productos</td></tr>
+</table>
+
+<h3><code>sumarVisualizacion</code> y el <code>useRef</code> que protege de StrictMode</h3>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">const visualizacionContadaRef = useRef(null);
+
+useEffect(() =&gt; {
+  productosApi.obtenerProducto(id).then(setProducto);
+
+  // Solo sumar si no hemos contado YA este id en este ciclo de vida
+  if (visualizacionContadaRef.current !== id) {
+    visualizacionContadaRef.current = id;  // marca como contado
+    productosApi.sumarVisualizacion(id).catch(() =&gt; {});
+  }
+}, [id]);</code></pre>
+</div>
+
+<p>En desarrollo con StrictMode, React monta → desmonta → vuelve a montar cada componente. Eso ejecutaría el <code>useEffect</code> dos veces, sumando dos visualizaciones por visita. El <code>useRef</code> actúa como memoria que NO dispara re-renders:</p>
+<ul>
+  <li>Primera ejecución: <code>ref.current = null ≠ id</code> → suma y guarda el id en el ref.</li>
+  <li>Segunda ejecución (StrictMode): <code>ref.current = id = id</code> → no suma (ya contado).</li>
+  <li>Si el usuario navega a otro producto (id cambia): <code>ref.current = id_viejo ≠ id_nuevo</code> → suma y actualiza el ref.</li>
+</ul>
+
+<h3>Diagrama de secuencia: ver detalle de producto y sumar visualización</h3>
+<p>Cómo se cargan los datos del producto y, en paralelo, se incrementa el contador de visualizaciones — con la protección anti-StrictMode:</p>
+
+<div class="code-wrap">
+  <span class="file-label">DetalleProducto: GET producto + PATCH visualizaciones</span>
+<pre><code class="language-text">Usuario  DetalleProducto.jsx  productos.js  client.js   Vite proxy  Backend   MySQL
+   │            │                   │           │            │          │        │
+   │ click Link │                   │           │            │          │        │
+   │ to="/productos/42"             │           │            │          │        │
+   │ ──────────▶│                   │           │            │          │        │
+   │            │ useParams() → id="42"         │            │          │        │
+   │            │ useEffect (dep [id]) ejecuta: │            │          │        │
+   │            │ setCargando(true)             │            │          │        │
+   │            │ obtenerProducto(id) ──▶       │            │          │        │
+   │            │                   │ request('/productos/42')         │          │
+   │            │                   │ ──────────▶│            │          │        │
+   │            │                   │           │ fetch GET ─▶          │        │
+   │            │                   │           │            │ ────────▶│        │
+   │            │                   │           │            │          │ SELECT │
+   │            │                   │           │            │          │ ──────▶│
+   │            │                   │           │            │          │ ◀── row│
+   │            │                   │           │            │ ◀── 200 +│        │
+   │            │                   │           │            │   producto JSON   │
+   │            │                   │           │ ◀── prod   │          │        │
+   │            │                   │ ◀── prod  │            │          │        │
+   │            │ ◀── prod          │           │            │          │        │
+   │            │ setProducto(prod) → re-render │            │          │        │
+   │            │                   │           │            │          │        │
+   │            │ Comprobación protección StrictMode:        │          │        │
+   │            │ if (ref.current !== "42") {                │          │        │
+   │            │   ref.current = "42"                       │          │        │
+   │            │   sumarVisualizacion(id) ──▶ │            │          │        │
+   │            │                   │ PATCH /productos/42/visualizaciones        │
+   │            │                   │ ──────────▶│            │          │        │
+   │            │                   │           │ fetch ────▶│ ────────▶│        │
+   │            │                   │           │            │          │ UPDATE │
+   │            │                   │           │            │          │ ──────▶│
+   │            │                   │           │            │ ◀── 204  │ ◀── ok │
+   │            │                   │           │ ◀── null   │ No Content        │
+   │            │                   │ ◀── null  │            │          │        │
+   │            │ ◀── null (ignorado: .catch(()=>{}))        │          │        │
+   │            │ }                 │           │            │          │        │
+   │ ve datos ◀ │                   │           │            │          │        │</code></pre>
+</div>
+
+<h3>Diagrama de secuencia: comprar un producto (server refresh)</h3>
+<p>Tres peticiones encadenadas: crear la compraventa, refrescar el producto y mostrar el badge "Vendido":</p>
+
+<div class="code-wrap">
+  <span class="file-label">acción "Comprar" — POST + GET de refresh</span>
+<pre><code class="language-text">Usuario  DetalleProducto  compraventas.js  productos.js  client.js  Vite/Backend  MySQL
+   │           │                  │              │             │           │          │
+   │ click     │                  │              │             │           │          │
+   │ "Comprar" │                  │              │             │           │          │
+   │ ─────────▶│                  │              │             │           │          │
+   │           │ if (!usuario) navegar('/login')  │             │           │          │
+   │           │ try {            │              │             │           │          │
+   │           │ crearCompraventa(│              │             │           │          │
+   │           │  {idProducto, idComprador})     │             │           │          │
+   │           │ ────────────────▶│              │             │           │          │
+   │           │                  │ request('/compraventas',   │           │          │
+   │           │                  │   {POST, body}) ─────────▶ │           │          │
+   │           │                  │              │             │ fetch ───▶│          │
+   │           │                  │              │             │           │ INSERT  │
+   │           │                  │              │             │           │ comprav.│
+   │           │                  │              │             │           │ UPDATE  │
+   │           │                  │              │             │           │ producto│
+   │           │                  │              │             │           │ vendido │
+   │           │                  │              │             │           │ ───────▶│
+   │           │                  │              │             │ ◀── 201   │          │
+   │           │                  │              │ ◀── datos  │           │          │
+   │           │                  │ ◀── datos    │             │           │          │
+   │           │ ◀── ok            │              │             │           │          │
+   │           │ setMensaje('¡Compra solicitada con éxito!')   │           │          │
+   │           │                  │              │             │           │          │
+   │           │ obtenerProducto(id) ──────────▶│             │           │          │
+   │           │                  │              │ request    │           │          │
+   │           │                  │              │ ──────────▶│ fetch ──▶ │ SELECT  │
+   │           │                  │              │             │           │ ───────▶│
+   │           │                  │              │             │           │ ◀──row  │
+   │           │                  │              │             │           │ con     │
+   │           │                  │              │             │ ◀── 200   │ vendido │
+   │           │                  │              │ ◀── prod   │ producto  │ = true  │
+   │           │                  │              │             │ refrescado│          │
+   │           │ ◀── refrescado    │              │             │           │          │
+   │           │ setProducto(refrescado) → re-render con badge "Vendido"   │          │
+   │           │ } catch (err) {  │              │             │           │          │
+   │           │   setError(err.message)         │             │           │          │
+   │           │ }                │              │             │           │          │
+   │ ve badge ◀│                  │              │             │           │          │
+   │ "Vendido" │                  │              │             │           │          │</code></pre>
+</div>
+
+<h3>Mapa de interacciones de las páginas con los módulos api/</h3>
+
+<div class="code-wrap">
+  <span class="file-label">qué API consume cada página</span>
+<pre><code class="language-text">Página                    Módulos api/ que usa            Endpoints backend invocados
+────────────────────────  ──────────────────────────────  ──────────────────────────────────────
+Home.jsx                  (ninguno)                       —
+Login.jsx                 AuthContext → auth.js           POST /api/auth/login, /oauth2/auth...
+Registro.jsx              AuthContext → usuarios + auth   POST /api/usuarios, /api/auth/login
+Productos.jsx             productos, categorias           GET /api/productos?..., /api/categorias
+DetalleProducto.jsx       productos, compraventas         GET, PATCH /productos/:id, POST /compraventas
+NuevoProducto.jsx         productos, categorias           POST /api/productos (returnLocation),
+                                                          PATCH /api/productos/:id/recogida
+EditarProducto.jsx        productos                       GET, PATCH /api/productos/:id
+Perfil.jsx                AuthContext, usuarios           GET /usuarios/:id, PATCH /usuarios/:id
+PerfilProductos.jsx       productos                       GET /api/productos (lote grande)
+PerfilVentas.jsx          compraventas                    GET /api/compraventas/vendedor/:id
+PerfilCompras.jsx         compraventas                    GET /api/compraventas/comprador/:id
+PerfilUsuario.jsx         usuarios                        GET /api/usuarios/:id
+AdminUsuarios.jsx         usuarios                        GET /api/usuarios
+AdminTransacciones.jsx    compraventas                    GET /api/compraventas/transacciones?...
+Error404.jsx              (ninguno)                       —</code></pre>
+</div>
+
+
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Por qué <code>delete cambios.clave</code> en el submit del Perfil?"</strong> — Si el usuario deja el campo clave vacío y se envía <code>{ clave: '' }</code> al backend, el PATCH podría sobreescribir la contraseña con una cadena vacía. <code>delete cambios.clave</code> elimina la propiedad del objeto antes de enviarlo, así el backend solo recibe la clave si el usuario realmente escribió algo nuevo.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Puede un usuario comprar su propio producto?"</strong> — El frontend muestra botones de "Editar/Eliminar" en lugar de "Comprar" cuando <code>esMio</code> es true. Pero si hubiera un bug de renderizado o alguien llamara la API directamente, el backend debería rechazar la compra si <code>idComprador === idVendedor</code> del producto. Si el backend no lo valida, sería una vulnerabilidad de lógica de negocio.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> Pregunta trampa del entrevistador</div>
+  <p><strong>"¿Qué diferencia hay entre <code>useRef</code> y una variable local al componente?"</strong> — Una variable local se crea de nuevo en cada render y pierde su valor entre renders. <code>useRef</code> persiste entre renders porque React guarda el objeto <code>{ current: ... }</code> en memoria mientras el componente esté montado. Además, cambiar <code>.current</code> NO dispara un re-render (a diferencia de <code>useState</code>). Por eso es ideal para "memoria privada" del componente que no afecta a la UI.</p>
+</div>
+
 <h2>Quiz general de las páginas</h2>
 
 <div class="quiz" data-respondido="0">

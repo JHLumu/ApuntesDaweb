@@ -377,7 +377,180 @@ console.log('Diferencia con 0:', 0 || 'cero', '/', 0 ?? 'cero');</textarea>
   <div class="try-it-salida"></div>
 </div>
 
-<h2>12. Quiz</h2>
+<h2>12. Teoría profunda: lo que el entrevistador sabe</h2>
+
+<h3>El event loop: por qué JavaScript puede ser "asíncrono" siendo single-threaded</h3>
+<p>JavaScript tiene <strong>una sola pila de llamadas</strong> (call stack). En un momento dado, sólo ejecuta una cosa. Entonces, ¿cómo no bloquea la pantalla mientras espera una respuesta HTTP? El <strong>event loop</strong>.</p>
+
+<div class="code-wrap">
+  <span class="file-label">Actores del event loop</span>
+<pre><code class="language-text">┌─────────────────────────────┐
+│         Call Stack          │  ← Código síncrono (funciones en ejecución)
+└──────────────┬──────────────┘
+               │ vacía
+               ▼
+┌─────────────────────────────┐
+│      Microtask Queue        │  ← Callbacks de Promises resueltas (await)
+│  (prioridad ALTA — vaciar   │
+│   toda la cola antes de     │
+│   pasar a macrotasks)        │
+└──────────────┬──────────────┘
+               │ vacía
+               ▼
+┌─────────────────────────────┐
+│      Macrotask Queue        │  ← setTimeout, setInterval, eventos del DOM
+│  (una tarea por ciclo)      │
+└─────────────────────────────┘</code></pre>
+</div>
+
+<p>Cuando escribes <code>await fetch('/api/productos')</code>:</p>
+<ol>
+  <li>La función se "pausa" y la petición se delega al motor de red (externo al event loop).</li>
+  <li>El event loop puede atender otras tareas (clicks, timers, otros renders).</li>
+  <li>Cuando llega la respuesta, el motor de red encola el callback en la <strong>microtask queue</strong>.</li>
+  <li>El event loop retoma la función desde donde la dejó.</li>
+</ol>
+
+<p>Por eso <code>await</code> no bloquea la UI: cede el control entre petición y respuesta. Si pusierais una operación de 5 segundos <em>síncrona</em> (un bucle pesado), la UI se congelaría.</p>
+
+<div class="try-it">
+  <div class="try-it-cabecera"><i class="bi bi-play-circle"></i> Demostración del event loop</div>
+  <textarea spellcheck="false">// Observa el orden de ejecución
+console.log('1 — Síncrono');
+
+setTimeout(() => console.log('4 — Macrotask (setTimeout 0ms)'), 0);
+
+Promise.resolve().then(() => console.log('3 — Microtask (Promise)'));
+
+console.log('2 — Síncrono');
+
+// Resultado esperado: 1, 2, 3, 4
+// Aunque setTimeout sea "0ms", la microtask (Promise) tiene prioridad</textarea>
+  <div class="try-it-acciones">
+    <button class="btn-ejecutar"><i class="bi bi-play-fill"></i> Ejecutar</button>
+    <button class="btn-limpiar secundario">Reiniciar</button>
+  </div>
+  <div class="try-it-salida"></div>
+</div>
+
+<h3>Promesas internamente: máquina de estados</h3>
+<p>Una <code>Promise</code> es un objeto con un estado interno que sólo puede hacer una transición:</p>
+
+<div class="code-wrap">
+<pre><code class="language-text">PENDING ──→ FULFILLED (resuelta con valor)
+        └──→ REJECTED  (rechazada con error)
+
+Una vez en FULFILLED o REJECTED, el estado NO puede cambiar.</code></pre>
+</div>
+
+<p>Por qué encadenar <code>.then().then()</code> funciona: cada <code>then</code> devuelve una <em>nueva</em> Promise. Si la función del <code>then</code> devuelve un valor, la nueva Promise se resuelve con ese valor. Si devuelve otra Promise, espera a que ésta resuelva:</p>
+
+<div class="code-wrap">
+<pre><code class="language-js">// Cadena de .then (equivale a varios await seguidos)
+productosApi.obtenerProducto(id)              // Promise<Producto>
+  .then(p => { setProducto(p); return p; })  // Promise<Producto>
+  .then(p => p.vendedor?.id)                 // Promise<string|undefined>
+  .then(idVendedor => console.log(idVendedor))
+  .catch(err => setError(err.message))        // captura cualquier fallo en la cadena
+  .finally(() => setCargando(false));         // siempre, sea éxito o fallo</code></pre>
+</div>
+
+<h3>Closures: la base invisible de los hooks</h3>
+<p>Un <strong>closure</strong> es una función que "recuerda" el scope (entorno de variables) en que fue creada, incluso cuando ese scope ya no está activo en la call stack.</p>
+
+<div class="code-wrap">
+  <span class="file-label">Closure clásico explicado</span>
+<pre><code class="language-js">function crearContador() {
+  let cuenta = 0;          // Variable LOCAL a crearContador
+  return function sumar() {
+    cuenta++;              // sumar "cierra sobre" cuenta — la recuerda
+    return cuenta;
+  };
+}
+const contador = crearContador();  // crearContador ya terminó...
+console.log(contador()); // 1     // ...pero cuenta sigue viva en el closure
+console.log(contador()); // 2
+console.log(contador()); // 3</code></pre>
+</div>
+
+<p>En el proyecto, cuando <code>loginConGithub</code> crea el <code>setInterval</code>, la función del intervalo captura (cierra sobre) <code>intervaloRef</code>, <code>aceptarToken</code> y <code>navegar</code>. Cuando el intervalo se dispara 400ms después, la función <code>loginConGithub</code> ya terminó, pero el closure mantiene esas referencias vivas:</p>
+
+<div class="code-wrap">
+  <span class="file-label">src/pages/Login.jsx — closure en setInterval</span>
+<pre><code class="language-js">const loginConGithub = () => {
+  // popup, intervaloRef, aceptarToken, navegar son capturados por el closure
+  const popup = window.open('/oauth2/authorization/github', ...);
+
+  intervaloRef.current = setInterval(() => {
+    // Esta función "recuerda" popup, intervaloRef, aceptarToken y navegar
+    // aunque loginConGithub ya terminó hace rato
+    if (popup.closed) { clearInterval(intervaloRef.current); return; }
+    // ...
+    aceptarToken(datos.token);  // aceptarToken del contexto, capturado en el closure
+    navegar('/');
+  }, 400);
+  // loginConGithub termina aquí, pero el intervalo sigue vivo
+};</code></pre>
+</div>
+
+<h3>Short-circuit evaluation: el gotcha más clásico de JSX</h3>
+<p>El operador <code>&&</code> devuelve el primer valor <em>falsy</em> que encuentra, o el último valor si todos son <em>truthy</em>:</p>
+
+<div class="code-wrap">
+<pre><code class="language-jsx">// ❌ PELIGRO: si productos.length es 0, React renderiza el 0 en pantalla
+{productos.length && &lt;Lista productos={productos} /&gt;}
+// porque: 0 && &lt;Lista/&gt; = 0 (falsy, pero 0 es un número válido para el DOM)
+
+// ✅ CORRECTO: comparación explícita
+{productos.length > 0 && &lt;Lista productos={productos} /&gt;}
+
+// ✅ TAMBIÉN CORRECTO: ternario
+{productos.length ? &lt;Lista productos={productos} /&gt; : null}</code></pre>
+</div>
+
+<table>
+  <tr><th>Valor</th><th>¿Es falsy?</th><th>¿JSX renderiza algo?</th></tr>
+  <tr><td><code>false</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
+  <tr><td><code>null</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
+  <tr><td><code>undefined</code></td><td>Sí</td><td>No (React lo ignora)</td></tr>
+  <tr><td><code>0</code></td><td>Sí</td><td><strong>¡Sí! Renderiza el "0" en pantalla</strong></td></tr>
+  <tr><td><code>''</code></td><td>Sí</td><td>No (string vacío no visible)</td></tr>
+</table>
+
+<h3><code>Object.fromEntries</code>: construir un mapa en O(1)</h3>
+<p>En <code>src/api/productos.js</code>:</p>
+<div class="code-wrap">
+<pre><code class="language-js">const ETIQUETAS_ESTADO = Object.fromEntries(
+  ESTADOS_PRODUCTO.map((e) => [e.valor, e.etiqueta])
+);
+export const etiquetaEstado = (valor) => ETIQUETAS_ESTADO[valor] ?? valor;</code></pre>
+</div>
+<p><code>ESTADOS_PRODUCTO.map(e => [e.valor, e.etiqueta])</code> transforma el array en un array de pares <code>['NUEVO', 'Nuevo']</code>. <code>Object.fromEntries</code> convierte esos pares en un objeto <code>{ NUEVO: 'Nuevo', ... }</code>. Ahora <code>etiquetaEstado('NUEVO')</code> es O(1) (acceso directo a propiedad) en lugar de O(n) (recorrer el array con <code>.find()</code>). Importa especialmente cuando se llama muchas veces seguidas (renderizar una lista de productos).</p>
+
+<h3>Preguntas trampa del entrevistador</h3>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué imprime <code>console.log(0 || 'hola')</code>? ¿Y <code>0 ?? 'hola'</code>?"</div>
+  <p><strong>||</strong>: devuelve el primer valor truthy o el último si todos son falsy. Como <code>0</code> es falsy, salta al siguiente: <strong>'hola'</strong>. <br>
+  <strong>??</strong>: sólo trata <code>null</code> y <code>undefined</code> como "vacíos". Como <code>0</code> no es ni null ni undefined, devuelve <strong>0</strong>. Diferencia crítica para manejar precios (un precio de 0€ es válido).</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Puede un <code>async function</code> lanzar un error SÍNCRONO?"</div>
+  <p><strong>Sí</strong>. Si el error ocurre antes del primer <code>await</code>, el runtime lo envuelve en una Promise rechazada. El llamador debe capturarlo con <code>catch</code> o <code>try/catch</code> aunque sea síncrono. Ejemplo: <code>async function f() { throw new Error('sync'); }</code> → <code>f().catch(e => console.log(e.message))</code> imprime "sync".</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Qué pasa si haces <code>await</code> de un valor que NO es una Promise?"</div>
+  <p>JavaScript lo envuelve automáticamente en <code>Promise.resolve(valor)</code>. <code>await 42</code> devuelve <code>42</code>. <code>await null</code> devuelve <code>null</code>. No da error. Esto es útil cuando una función puede devolver un valor síncrono o asíncrono indistintamente.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-titulo"><i class="bi bi-exclamation-triangle"></i> "¿Por qué <code>const o = {}; o.x = 1</code> no da error si o es const?"</div>
+  <p><code>const</code> impide reasignar la <em>referencia</em> (no puedes hacer <code>o = {}</code> de nuevo), pero el objeto en sí es mutable. <code>const</code> no implica inmutabilidad del contenido. Para objetos verdaderamente inmutables: <code>Object.freeze(o)</code>. React no usa freeze; en su lugar, la convención es nunca mutar y siempre crear objetos nuevos con spread.</p>
+</div>
+
+<h2>13. Quiz</h2>
 
 <div class="quiz" data-respondido="0">
   <div class="quiz-titulo"><i class="bi bi-question-circle"></i> Pregunta 1</div>
