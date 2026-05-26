@@ -362,6 +362,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   margin: 0 auto;
   width: 100%;
   min-width: 0;
+  overflow-wrap: break-word;
 }
 .loader {
   text-align: center;
@@ -448,6 +449,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   padding: 0.45rem 0.95rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   letter-spacing: 0.02em;
+  padding-right: 5.5rem;
 }
 .code-wrap pre {
   margin: 0 !important;
@@ -613,7 +615,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   background: var(--surface-soft);
   color: var(--ink);
   width: 48%;
-  white-space: pre;
+  white-space: pre-wrap;
   font-size: 0.82rem;
   border-right: 1px solid var(--border);
   border-radius: 0;
@@ -881,6 +883,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   font-size: 0.8rem;
   flex-shrink: 0;
 }
+.flujo-paso > *:not(.num) { min-width: 0; }
 .flujo-flecha {
   text-align: center;
   color: var(--subtle);
@@ -976,7 +979,7 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 
 .dos-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 1rem;
 }
 .dos-cols > * { min-width: 0; } /* evita overflow horizontal cuando hay <pre> dentro */
@@ -1081,7 +1084,6 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   .layout { grid-template-columns: 1fr; }
   .contenido { padding: 1.75rem 1.25rem 7rem; }
   .search-wrap { max-width: none; }
-  .dos-cols { grid-template-columns: 1fr; }
   .fab span { display: none; }
   .fab { padding: 0.85rem; }
   /* En móvil cualquier tabla puede romper el layout: forzamos scroll en su wrapper */
