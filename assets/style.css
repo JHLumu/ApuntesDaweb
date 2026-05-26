@@ -492,12 +492,12 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 }
 .callout-titulo {
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-bottom: 0.35rem;
   font-size: 0.92rem;
   letter-spacing: 0.005em;
+}
+.callout-titulo i {
+  margin-right: 0.5rem;
 }
 .callout p { margin: 0.35rem 0; color: var(--ink-soft); }
 .callout p:last-child { margin-bottom: 0; }
@@ -513,14 +513,12 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
 
 /* ───── Tip-regla: regla mnemotécnica corta para reproducir un patrón de memoria ───── */
 .tip-regla {
-  display: flex;
-  gap: 0.7rem;
-  align-items: flex-start;
+  position: relative;
   background: var(--success-bg);
   border: 1px solid var(--border);
   border-left: 3px solid var(--success);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem 0.75rem 2.4rem;
   margin: 1rem 0;
   font-size: 0.92rem;
   color: var(--ink-soft);
@@ -531,7 +529,9 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   color: var(--success);
   font-size: 1rem;
   line-height: 1.4;
-  flex-shrink: 0;
+  position: absolute;
+  left: 1rem;
+  top: 0.75rem;
 }
 .tip-regla strong { color: var(--success); font-weight: 700; }
 .tip-regla code { background: rgba(0,0,0,0.05); }
@@ -676,9 +676,9 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   color: var(--primary);
   font-weight: 700;
   margin-bottom: 0.7rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+}
+.quiz-titulo i {
+  margin-right: 0.4rem;
 }
 .quiz-pregunta { font-weight: 600; margin: 0.25rem 0 1rem; font-size: 1rem; line-height: 1.5; color: var(--ink); }
 .quiz-opciones { display: flex; flex-direction: column; gap: 0.45rem; }
@@ -859,31 +859,29 @@ button:focus-visible, input:focus-visible { outline-offset: 2px; }
   gap: 0.5rem;
 }
 .flujo-paso {
-  display: flex;
-  align-items: flex-start; /* mejor con texto multilinea */
-  gap: 0.85rem;
-  padding: 0.7rem 1rem;
+  position: relative;
+  padding: 0.7rem 1rem 0.7rem 3rem;
   background: var(--surface-soft);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   color: var(--ink-soft);
   line-height: 1.55;
 }
-.flujo-paso .num { margin-top: 1px; }
 .flujo-paso .num {
+  position: absolute;
+  left: 0.85rem;
+  top: 0.7rem;
   background: var(--primary);
   color: #fff;
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 0.8rem;
-  flex-shrink: 0;
 }
-.flujo-paso > *:not(.num) { min-width: 0; }
 .flujo-flecha {
   text-align: center;
   color: var(--subtle);
